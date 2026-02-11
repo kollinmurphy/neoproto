@@ -1,0 +1,25 @@
+{
+  "name": "project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "postinstall": "patch-package",
+    "preprocess": "rm -rf data/dist && mkdir -p data/dist && pbjs --target json --out data/dist/example.json data/example.proto && pbjs --target static-module --wrap es6 --dependency protobufjs --out data/dist/example.js data/example.proto && pbts --out data/dist/example.d.ts data/dist/example.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "patch-package": "^8.0.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "protobufjs-cli": "^2.0.0"
+  }
+}

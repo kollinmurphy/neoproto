@@ -1,0 +1,7 @@
+syntax = "proto3";
+package api;
+
+// A simple message definition
+message MyMessage {
+ string value = 1;
+}
