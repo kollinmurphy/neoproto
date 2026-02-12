@@ -1,7 +1,17 @@
-syntax = "proto3";
-package api;
+// Text 1
+syntax = "proto2";
 
-// A simple message definition
+// Text 2
+
+/* Test 439104 */
+package MyApiV1;
+
+/* A simple message for demonstration purposes.
+    This is a continuation.
+    * More stuff
+*/
 message MyMessage {
- string value = 1;
+  /* Text 3 */
+ required string value = 1;
+ required string value2 = 2;
 }
