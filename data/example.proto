@@ -21,4 +21,6 @@ message MyMessage {
  optional int64 some_long = 2;
  optional MyNestedMessage nested = 3;
  required bool some_thing = 4;
+ repeated string some_repeated_string = 5;
+ repeated MyNestedMessage some_repeated_nested = 6;
 }

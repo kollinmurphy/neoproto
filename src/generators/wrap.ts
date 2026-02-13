@@ -1,6 +1,6 @@
 import proto from "protobufjs";
 import { capitalizeFirstLetter } from "../utils/string-manipulation.js";
-import { isRequiredField } from "../utils/protobuf.js";
+import { getFields, isRequiredField } from "../utils/protobuf.js";
 
 function createNamespaceWrappers(
   namespace: proto.Namespace,
@@ -34,7 +34,7 @@ export {
 `;
 }
 
-function createRequiredFieldWrapExpression(field: proto.Field) {
+function createRequiredFieldWrapExpression(field: proto.Field, name: string) {
   const fieldName = field.name;
   const fieldType = field.resolvedType ? field.resolvedType.name : field.type;
   switch (fieldType) {
@@ -47,32 +47,40 @@ function createRequiredFieldWrapExpression(field: proto.Field) {
     case "sfixed32":
     case "sint32":
     case "uint32":
-      return `input.${fieldName}`;
+      return name;
     case "fixed64":
     case "int64":
     case "sfixed64":
     case "sint64":
     case "uint64":
-      return `typeof input.${fieldName} === "number" ? BigInt(input.${fieldName}) : input.${fieldName}.toBigInt()`;
+      return `typeof ${name} === "number" ? BigInt(${name}) : ${name}.toBigInt()`;
     default:
-      return `${getWrapperFunctionName(fieldType)}(input.${fieldName})`;
+      return `${getWrapperFunctionName(fieldType)}(${name})`;
   }
 }
 
 function createMaybeOptionalFieldWrapExpression(field: proto.Field) {
   const fieldName = field.name;
-  const baseExpression = createRequiredFieldWrapExpression(field);
-  return {
-    expression: isRequiredField(field)
-      ? `${fieldName}: ${baseExpression}`
-      : `...(isNonNullish(input.${fieldName}) ? { ${fieldName}: ${baseExpression} } : {})`,
-  };
+  const baseExpression = createRequiredFieldWrapExpression(
+    field,
+    `input.${fieldName}`,
+  );
+  return isRequiredField(field)
+    ? `${fieldName}: ${baseExpression}`
+    : `...(isNonNullish(input.${fieldName}) ? { ${fieldName}: ${baseExpression} } : {})`;
+}
+
+function createMaybeRepeatedFieldWrapExpression(field: proto.Field) {
+  if (!field.repeated) return createMaybeOptionalFieldWrapExpression(field);
+  const fieldName = field.name;
+  const baseExpression = createRequiredFieldWrapExpression(field, "item");
+  const needsMap = baseExpression !== "item";
+  return needsMap
+    ? `${fieldName}: (input.${fieldName} ?? []).map((item) => ${baseExpression})`
+    : `${fieldName}: input.${fieldName} ?? []`;
 }
 
 function createMessageWrapperFunctions(namespace: string, message: proto.Type) {
-  const mappers = Object.values(message.fields)
-    .sort()
-    .map(createMaybeOptionalFieldWrapExpression);
   const functionName = getWrapperFunctionName(message.name);
   const definitions = `
 /**
@@ -82,7 +90,9 @@ function createMessageWrapperFunctions(namespace: string, message: proto.Type) {
  */
 function ${functionName}(input: ${namespace}.I${message.name}): ${message.name} {
   const object: ${message.name} = {
-    ${mappers.map((m) => m.expression).join(",\n    ")}
+    ${getFields(message)
+      .map(createMaybeRepeatedFieldWrapExpression)
+      .join(",\n    ")}
   };
   return object;
 }

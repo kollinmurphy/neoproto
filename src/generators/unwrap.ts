@@ -34,8 +34,7 @@ export {
 `;
 }
 
-function createRequiredFieldUnwrapExpression(field: proto.Field) {
-  const fieldName = field.name;
+function createRequiredFieldUnwrapExpression(field: proto.Field, name: string) {
   const fieldType = field.resolvedType ? field.resolvedType.name : field.type;
   switch (fieldType) {
     case "bool":
@@ -47,36 +46,43 @@ function createRequiredFieldUnwrapExpression(field: proto.Field) {
     case "sfixed32":
     case "sint32":
     case "uint32":
-      return `input.${fieldName}`;
+      return name;
     case "fixed64":
     case "int64":
     case "sfixed64":
     case "sint64":
     case "uint64":
-      return `typeof input.${fieldName} === 'number' ? input.${fieldName} : long.fromBigInt(input.${fieldName})`;
+      return `typeof ${name} === 'number' ? ${name} : long.fromBigInt(${name})`;
     default:
-      return `${getUnwrapperFunctionName(fieldType)}(input.${fieldName})`;
+      return `${getUnwrapperFunctionName(fieldType)}(${name})`;
   }
 }
 
 function createMaybeOptionalFieldUnwrapExpression(field: proto.Field) {
   const fieldName = field.name;
-  const baseExpression = createRequiredFieldUnwrapExpression(field);
-  return {
-    expression: isRequiredField(field)
-      ? `${fieldName}: ${baseExpression}`
-      : `...(isNonNullish(input.${fieldName}) ? { ${fieldName}: ${baseExpression} } : {})`,
-    imports: [field.type],
-  };
+  const baseExpression = createRequiredFieldUnwrapExpression(
+    field,
+    `input.${fieldName}`,
+  );
+  return isRequiredField(field)
+    ? `${fieldName}: ${baseExpression}`
+    : `...(isNonNullish(input.${fieldName}) ? { ${fieldName}: ${baseExpression} } : {})`;
+}
+
+function createMaybeRepeatedFieldUnwrapExpression(field: proto.Field) {
+  if (!field.repeated) return createMaybeOptionalFieldUnwrapExpression(field);
+  const fieldName = field.name;
+  const baseExpression = createRequiredFieldUnwrapExpression(field, "item");
+  const needsMap = baseExpression !== "item";
+  return needsMap
+    ? `${fieldName}: (input.${fieldName} ?? []).map((item) => ${baseExpression})`
+    : `${fieldName}: input.${fieldName} ?? []`;
 }
 
 function createMessageUnwrapperFunctions(
   namespace: string,
   message: proto.Type,
 ) {
-  const mappers = Object.values(message.fields)
-    .sort()
-    .map(createMaybeOptionalFieldUnwrapExpression);
   const functionName = getUnwrapperFunctionName(message.name);
   const definitions = `
 /**
@@ -86,7 +92,9 @@ function createMessageUnwrapperFunctions(
  */
 function ${functionName}(input: ${message.name}): ${namespace}.I${message.name} {
   const proto: ${namespace}.I${message.name} = {
-    ${mappers.map((m) => m.expression).join(",\n    ")}
+    ${getFields(message)
+      .map(createMaybeRepeatedFieldUnwrapExpression)
+      .join(",\n    ")}
   };
   return proto;
 }

@@ -25,15 +25,21 @@ function createMessageInterface(message: proto.Type) {
   }
   interfaceDef += `interface ${message.name} {\n`;
   for (const field of message.fieldsArray.map((f) => f.resolve())) {
-    const tsType = convertToTypescriptType(field.type);
-    const optional = isRequiredField(field) ? "" : "?";
+    const tsType = convertMaybeRepeatedToTsType(field);
+    // NOTE: Repeated fields are considered required. Expect an empty array to be used if there are no values.
+    const required = isRequiredField(field) || field.repeated;
     if (field.comment) {
       interfaceDef += createMultilineComment(field.comment, "  ") + "\n";
     }
-    interfaceDef += `  ${field.name}${optional}: ${tsType};\n`;
+    interfaceDef += `  ${field.name}${required ? "" : "?"}: ${tsType};\n`;
   }
   interfaceDef += `}\n\n`;
   return interfaceDef;
+}
+
+function convertMaybeRepeatedToTsType(protoType: proto.Field) {
+  const baseType = convertToTypescriptType(protoType.type);
+  return protoType.repeated ? `${baseType}[]` : baseType;
 }
 
 function convertToTypescriptType(protoType: string): string {
