@@ -5,3 +5,7 @@ export function lowercaseFirstLetter(str: string): string {
 export function capitalizeFirstLetter(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+export function removeRequestSuffix(str: string): string {
+  return str.replace(/Request|Req$/, "");
+}

@@ -1,16 +1,13 @@
 import proto from "protobufjs";
 import { capitalizeFirstLetter } from "../utils/string-manipulation.js";
-import { getFields, isRequiredField } from "../utils/protobuf.js";
+import { getFields, getMessages, isRequiredField } from "../utils/protobuf.js";
 
-function createNamespaceUnwrappers(
-  namespace: proto.Namespace,
-  messageNames: string[],
-): string {
+function createNamespaceUnwrappers(namespace: proto.Namespace): string {
   let definitions = "";
   const exports: string[] = [];
   const typeImports: string[] = [];
-  for (const messageName of messageNames) {
-    const message = namespace.nested?.[messageName] as proto.Type;
+  const messages = getMessages(namespace);
+  for (const message of messages) {
     const {
       definitions: mapperDefinitions,
       exports: mapperExports,

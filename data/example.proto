@@ -14,8 +14,9 @@ message MyNestedMessage {
 /* A simple message for demonstration purposes.
     This is a continuation.
     * More stuff
+  * MessageId: 1
 */
-message MyMessage {
+message MyMessageReq {
   /* Text 3 */
  required string value = 1;
  optional int64 some_long = 2;
@@ -23,4 +24,18 @@ message MyMessage {
  required bool some_thing = 4;
  repeated string some_repeated_string = 5;
  repeated MyNestedMessage some_repeated_nested = 6;
+}
+
+/**
+  * This is a response message for MyMessageReq.
+  * It contains the same fields as MyMessageReq, but it is a separate message type.
+  * MessageId: 2
+  */
+message MyMessageRes {
+  required string value = 1;
+  optional int64 some_long = 2;
+  optional MyNestedMessage nested = 3;
+  required bool some_thing = 4;
+  repeated string some_repeated_string = 5;
+  repeated MyNestedMessage some_repeated_nested = 6;
 }

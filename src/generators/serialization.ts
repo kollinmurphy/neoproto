@@ -2,18 +2,16 @@ import proto from "protobufjs";
 import { capitalizeFirstLetter } from "../utils/string-manipulation.js";
 import { getWrapperFunctionName } from "./wrap.js";
 import { getUnwrapperFunctionName } from "./unwrap.js";
+import { getMessages } from "../utils/protobuf.js";
 
-function createNamespaceSerializers(
-  namespace: proto.Namespace,
-  messageNames: string[],
-): string {
+function createNamespaceSerializers(namespace: proto.Namespace): string {
   let definitions = "";
   const exports: string[] = [];
   const typeImports: string[] = [];
   const wrapperImports: string[] = [];
   const unwrapperImports: string[] = [];
-  for (const messageName of messageNames) {
-    const message = namespace.nested?.[messageName] as proto.Type;
+  const messages = getMessages(namespace);
+  for (const message of messages) {
     const {
       definitions: messageDefinitions,
       exports: messageExports,

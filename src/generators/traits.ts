@@ -1,33 +1,69 @@
 import proto from "protobufjs";
-import { lowercaseFirstLetter } from "../utils/string-manipulation.js";
+import {
+  lowercaseFirstLetter,
+  removeRequestSuffix,
+} from "../utils/string-manipulation.js";
 import {
   getDeserializerFunctionName,
   getSerializerFunctionName,
 } from "./serialization.js";
+import { getMessages } from "../utils/protobuf.js";
+import { getMessageId } from "../utils/associations.js";
+import { logError } from "../utils/logger.js";
 
 function createNamespaceTraits(
   namespace: proto.Namespace,
-  messageNames: string[],
+  associations: [proto.Type, proto.Type][],
 ): string {
   let traitsContent = "";
-  const traitNames: string[] = [];
+  const messageTraits: string[] = [];
   const allImports: string[] = [];
-  for (const messageName of messageNames) {
-    const message = namespace.nested?.[messageName] as proto.Type;
-    const { definition, name, imports } = createMessageTraits(message);
+  const messages = getMessages(namespace);
+  for (const message of messages) {
+    const result = createMessageTraits(message);
+    if (!result) {
+      continue;
+    }
+    const { definition, name, imports } = result;
     traitsContent += definition;
-    traitNames.push(name);
+    messageTraits.push(name);
     allImports.push(...imports);
   }
   const { baseName, version } = parseNamespace(namespace.name);
-  traitNames.push("API_NAME", "API_VERSION");
+  messageTraits.push("API_NAME", "API_VERSION");
+
+  let associationTraits = "";
+  for (const [request, response] of associations) {
+    const pairName = removeRequestSuffix(request.name);
+    const pairTraitsName = getReqResTraitName(pairName);
+    const requestTraitName = getTraitName(request.name);
+    const responseTraitName = getTraitName(response.name);
+    associationTraits += `const ${pairTraitsName} = {
+  name: "${pairName}",
+  request: ${requestTraitName},
+  response: ${responseTraitName},
+};\n`;
+    if (!messageTraits.includes(requestTraitName)) {
+      logError(
+        `${request.name} is missing a message ID but is detected as a request message. Please add a 'MessageId: ###' comment to it.`,
+      );
+    }
+    if (!messageTraits.includes(responseTraitName)) {
+      logError(
+        `${response.name} is missing a message ID but is detected as a response message. Please add a 'MessageId: ###' comment to it.`,
+      );
+    }
+    messageTraits.push(pairTraitsName);
+  }
+
   return `import { ${[...new Set(allImports)].sort().join(", ")} } from "./serialization.js";
 
 const API_NAME = "${baseName}";
 const API_VERSION = ${version};
 ${traitsContent}
+${associationTraits}
 export {
-  ${traitNames.sort().join(",\n  ")}
+  ${messageTraits.sort().join(",\n  ")}
 };
 `;
 }
@@ -46,12 +82,17 @@ function parseNamespace(namespace: string) {
 }
 
 function createMessageTraits(message: proto.Type) {
-  const traitName = `${lowercaseFirstLetter(message.name)}Traits`;
+  const id = getMessageId(message);
+  if (!id) {
+    return null;
+  }
+  const traitName = getTraitName(message.name);
   const serialize = getSerializerFunctionName(message.name);
   const deserialize = getDeserializerFunctionName(message.name);
   const definition = `
 const ${traitName} = {
   deserialize: ${deserialize},
+  name: "${message.name}",
   serialize: ${serialize},
 };\n`;
   return {
@@ -59,6 +100,14 @@ const ${traitName} = {
     name: traitName,
     imports: [serialize, deserialize],
   };
+}
+
+function getTraitName(messageName: string) {
+  return `${lowercaseFirstLetter(messageName)}Traits`;
+}
+
+function getReqResTraitName(pairName: string) {
+  return `${lowercaseFirstLetter(pairName)}ReqResTraits`;
 }
 
 export { createNamespaceTraits };

@@ -6,6 +6,9 @@ import { createNamespaceTypes } from "./generators/types.js";
 import { createNamespaceTraits } from "./generators/traits.js";
 import { createNamespaceWrappers } from "./generators/wrap.js";
 import { createNamespaceUnwrappers } from "./generators/unwrap.js";
+import { associateMessages } from "./utils/associations.js";
+import { getMessages } from "./utils/protobuf.js";
+import { logError } from "./utils/logger.js";
 
 const __dirname = new URL(".", import.meta.url).pathname;
 
@@ -27,42 +30,51 @@ async function main() {
   await mkdir(`${outDir}/protobuf`, { recursive: true });
 
   const { namespace } = await runProtobufjsCli(protoPath, `${outDir}/protobuf`);
-  const messageNames = Object.keys(namespace.nested ?? {});
+  const associations = associateMessages(getMessages(namespace));
 
   await writeFile(
     `${outDir}/serialization.ts`,
-    createNamespaceSerializers(namespace, messageNames),
+    createNamespaceSerializers(namespace),
   );
   console.log(`Wrote serialization functions to ${outDir}/serialization.ts`);
 
-  await writeFile(
-    `${outDir}/wrap.ts`,
-    createNamespaceWrappers(namespace, messageNames),
-  );
+  await writeFile(`${outDir}/wrap.ts`, createNamespaceWrappers(namespace));
   console.log(`Wrote wrapper functions to ${outDir}/wrap.ts`);
 
-  await writeFile(
-    `${outDir}/unwrap.ts`,
-    createNamespaceUnwrappers(namespace, messageNames),
-  );
+  await writeFile(`${outDir}/unwrap.ts`, createNamespaceUnwrappers(namespace));
   console.log(`Wrote unwrapper functions to ${outDir}/unwrap.ts`);
 
-  await writeFile(
-    `${outDir}/types.ts`,
-    createNamespaceTypes(namespace, messageNames),
-  );
+  await writeFile(`${outDir}/types.ts`, createNamespaceTypes(namespace));
   console.log(`Wrote TypeScript interfaces to ${outDir}/types.ts`);
 
   await writeFile(
     `${outDir}/traits.ts`,
-    createNamespaceTraits(namespace, messageNames),
+    createNamespaceTraits(namespace, associations),
   );
   console.log(`Wrote traits to ${outDir}/traits.ts`);
+
+  await writeFile(
+    `${outDir}/index.ts`,
+    `export * from "./serialization.js";
+export * from "./traits.js";
+export * from "./types.js";
+export * from "./unwrap.js";
+export * from "./wrap.js";
+`,
+  );
+  console.log(`Wrote index file to ${outDir}/index.ts`);
 }
 
 main()
   .then(() => {
-    console.log("\nAll tasks completed successfully!\n");
+    if (!process.exitCode) {
+      console.log("\nAll tasks completed successfully!\n");
+    } else {
+      logError(
+        "One or more tasks completed with errors. Please check the logs above for details.",
+        "",
+      );
+    }
   })
   .catch((err) => {
     console.error("Error:", err);

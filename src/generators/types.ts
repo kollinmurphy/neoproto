@@ -1,18 +1,15 @@
 import proto from "protobufjs";
 import { createMultilineComment } from "../utils/comments.js";
-import { isRequiredField } from "../utils/protobuf.js";
+import { getMessages, isRequiredField } from "../utils/protobuf.js";
 
-function createNamespaceTypes(
-  namespace: proto.NamespaceBase,
-  messageNames: string[],
-): string {
+function createNamespaceTypes(namespace: proto.NamespaceBase): string {
   let typesContent = "";
-  for (const messageName of messageNames) {
-    const message = namespace.nested?.[messageName] as proto.Type;
+  const messages = getMessages(namespace);
+  for (const message of messages) {
     typesContent += createMessageInterface(message);
   }
   typesContent += `export type {
-  ${messageNames.join(",\n  ")},
+  ${messages.map((m) => m.name).join(",\n  ")},
 };
 `;
   return typesContent;
