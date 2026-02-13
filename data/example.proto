@@ -6,6 +6,10 @@ syntax = "proto2";
 /* Test 439104 */
 package MyApiV1;
 
+message MyNestedMessage {
+  required int32 id = 1;
+}
+
 /* A simple message for demonstration purposes.
     This is a continuation.
     * More stuff
@@ -13,5 +17,6 @@ package MyApiV1;
 message MyMessage {
   /* Text 3 */
  required string value = 1;
- required string value2 = 2;
+ optional string value2 = 2;
+ optional MyNestedMessage nested = 3;
 }
