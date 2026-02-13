@@ -43,6 +43,7 @@ function createRequiredFieldUnwrapExpression(field: proto.Field, name: string) {
     case "sfixed32":
     case "sint32":
     case "uint32":
+    case "bytes":
       return name;
     case "fixed64":
     case "int64":

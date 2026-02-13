@@ -10,17 +10,63 @@ import { associateMessages } from "./utils/associations.js";
 import { getMessages } from "./utils/protobuf.js";
 import { logError } from "./utils/logger.js";
 
-const __dirname = new URL(".", import.meta.url).pathname;
+function printUsage() {
+  console.log(`
+Usage: ${process.argv[1]} --proto <path/to/file.proto> --out-dir <output/directory> [--force] [--test-dir <path/to/test/dir>]
 
-const protoPath = `${__dirname}../data/example.proto`;
-const outDir = `${__dirname}../data/dist`;
+Options:
+  --proto, -p       Path to the .proto file to process.
+  --out-dir, -o    Directory where the generated files will be saved.
+  --force, -f      Overwrite the output directory if it already exists.
+  --test-dir, -t    Directory where the test files will be saved.
+
+Example:
+  ${process.argv[1]} --proto ./example.proto --out-dir ./generated --force --test-dir ./tests
+`);
+}
 
 async function main() {
+  const args = process.argv.slice(2);
+
+  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+    printUsage();
+    process.exit(0);
+  }
+
+  const outDirIdx = args.findIndex(
+    (arg) => arg === "--out-dir" || arg === "-o",
+  );
+  if (outDirIdx === -1 || outDirIdx === args.length - 1) {
+    logError(
+      "Output directory not specified. Use --out-dir or -o followed by the desired path.",
+      "",
+    );
+    process.exit(1);
+  }
+
+  const protoPathIdx = args.findIndex(
+    (arg) => arg === "--proto" || arg === "-p",
+  );
+  if (protoPathIdx === -1 || protoPathIdx === args.length - 1) {
+    logError(
+      "Proto file path not specified. Use --proto or -p followed by the path to your .proto file.",
+      "",
+    );
+    process.exit(1);
+  }
+
+  const testDirIdx = args.findIndex(
+    (arg) => arg === "--test-dir" || arg === "-t",
+  );
+
+  const protoPath = args[protoPathIdx + 1]!;
+  const outDir = args[outDirIdx + 1]!;
+  const testDir = testDirIdx !== -1 ? args[testDirIdx + 1]! : null;
+  const canOverwrite = args.includes("--force") || args.includes("-f");
+
   if (existsSync(outDir)) {
-    const canOverwrite =
-      process.argv.includes("--force") || process.argv.includes("-f");
     if (!canOverwrite) {
-      console.error(
+      logError(
         `Output directory ${outDir} already exists. Use --force or -f to overwrite.`,
       );
       process.exit(1);
@@ -28,6 +74,16 @@ async function main() {
     await rm(outDir, { force: true, recursive: true });
   }
   await mkdir(`${outDir}/protobuf`, { recursive: true });
+
+  if (testDir && existsSync(testDir)) {
+    if (!canOverwrite) {
+      logError(
+        `Test directory ${testDir} already exists. Use --force or -f to overwrite.`,
+      );
+      process.exit(1);
+    }
+    await rm(testDir, { force: true, recursive: true });
+  }
 
   const { namespace } = await runProtobufjsCli(protoPath, `${outDir}/protobuf`);
   const associations = associateMessages(getMessages(namespace));
@@ -63,6 +119,15 @@ export * from "./wrap.js";
 `,
   );
   console.log(`Wrote index file to ${outDir}/index.ts`);
+
+  if (testDir) {
+    await mkdir(testDir, { recursive: true });
+    await writeFile(
+      `${testDir}/serialization.spec.ts`,
+      `// Placeholder for serialization tests. Implement your tests here.`,
+    );
+    console.log(`Wrote test file to ${testDir}/serialization.spec.ts`);
+  }
 }
 
 main()

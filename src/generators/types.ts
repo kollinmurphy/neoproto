@@ -41,24 +41,35 @@ function convertMaybeRepeatedToTsType(protoType: proto.Field) {
 
 function convertToTypescriptType(protoType: string): string {
   switch (protoType) {
-    case "string":
-      return "string";
+    /* decimals */
     case "double":
-    case "fixed32":
     case "float":
+    /* 32-bit integers */
+    case "fixed32":
     case "int32":
     case "sfixed32":
     case "sint32":
     case "uint32":
       return "number";
+
+    /* 64-bit integers */
     case "fixed64":
     case "int64":
     case "sfixed64":
     case "sint64":
     case "uint64":
       return "bigint";
+
+    /* others */
     case "bool":
       return "boolean";
+
+    case "bytes":
+      return "Uint8Array";
+
+    case "string":
+      return "string";
+
     default:
       return protoType; // For message types, enums, etc.
   }

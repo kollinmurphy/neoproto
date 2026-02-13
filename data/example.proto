@@ -38,4 +38,5 @@ message MyMessageRes {
   required bool some_thing = 4;
   repeated string some_repeated_string = 5;
   repeated MyNestedMessage some_repeated_nested = 6;
+  required bytes binary_data = 7;
 }

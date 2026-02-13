@@ -3,6 +3,8 @@ import { capitalizeFirstLetter } from "../utils/string-manipulation.js";
 import { getWrapperFunctionName } from "./wrap.js";
 import { getUnwrapperFunctionName } from "./unwrap.js";
 import { getMessages } from "../utils/protobuf.js";
+import { getMessageId } from "../utils/associations.js";
+import { logError } from "../utils/logger.js";
 
 function createNamespaceSerializers(namespace: proto.Namespace): string {
   let definitions = "";
@@ -12,19 +14,29 @@ function createNamespaceSerializers(namespace: proto.Namespace): string {
   const unwrapperImports: string[] = [];
   const messages = getMessages(namespace);
   for (const message of messages) {
+    const result = createMessageSerializers(namespace.name, message);
+    if (!result) {
+      continue;
+    }
     const {
       definitions: messageDefinitions,
       exports: messageExports,
       typeImports: messageImports,
       wrapperImports: messageWrapperImports,
       unwrapperImports: messageUnwrapperImports,
-    } = createMessageSerializers(namespace.name, message);
+    } = result;
     definitions += messageDefinitions;
     exports.push(...messageExports);
     typeImports.push(...messageImports);
     wrapperImports.push(...messageWrapperImports);
     unwrapperImports.push(...messageUnwrapperImports);
   }
+
+  if (!definitions)
+    logError(
+      `No messages with a valid message ID found in namespace ${namespace.name}. No serializers generated.`,
+    );
+
   const dedupedTypeImports = [...new Set(typeImports)];
   const dedupedWrapperImports = [...new Set(wrapperImports)];
   const dedupedUnwrapperImports = [...new Set(unwrapperImports)];
@@ -40,6 +52,9 @@ export {
 }
 
 function createMessageSerializers(namespace: string, message: proto.Type) {
+  if (!getMessageId(message)) {
+    return null;
+  }
   const functionSuffix = capitalizeFirstLetter(message.name);
 
   const serialize = `serialize${functionSuffix}`;
