@@ -4,10 +4,11 @@ syntax = "proto2";
 // Text 2
 
 /* Test 439104 */
-package MyApiV1;
+package My_Api_V1;
 
 message MyNestedMessage {
   required int32 id = 1;
+  required int64 some_other_long = 2;
 }
 
 /* A simple message for demonstration purposes.
@@ -17,6 +18,7 @@ message MyNestedMessage {
 message MyMessage {
   /* Text 3 */
  required string value = 1;
- optional string value2 = 2;
+ optional int64 some_long = 2;
  optional MyNestedMessage nested = 3;
+ required bool some_thing = 4;
 }

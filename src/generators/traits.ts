@@ -1,5 +1,9 @@
 import proto from "protobufjs";
 import { lowercaseFirstLetter } from "../utils/string-manipulation.js";
+import {
+  getDeserializerFunctionName,
+  getSerializerFunctionName,
+} from "./serialization.js";
 
 function createNamespaceTraits(
   namespace: proto.Namespace,
@@ -15,28 +19,45 @@ function createNamespaceTraits(
     traitNames.push(name);
     allImports.push(...imports);
   }
-  traitsContent += `export {
-  ${traitNames.join(",\n  ")}
+  const { baseName, version } = parseNamespace(namespace.name);
+  traitNames.push("API_NAME", "API_VERSION");
+  return `import { ${[...new Set(allImports)].sort().join(", ")} } from "./serialization.js";
+
+const API_NAME = "${baseName}";
+const API_VERSION = ${version};
+${traitsContent}
+export {
+  ${traitNames.sort().join(",\n  ")}
 };
 `;
-  traitsContent = `import { ${[...new Set(allImports)].join(", ")} } from "./serialization.js";
+}
 
-${traitsContent}`;
-  return traitsContent;
+function parseNamespace(namespace: string) {
+  const match = namespace.match(/^(.*)_?v(\d+)$/i);
+  if (!match) {
+    throw new Error(
+      `Invalid namespace format: ${namespace}. Expected format is "NamespaceV1"`,
+    );
+  }
+  return {
+    baseName: match[1]?.replace(/_?$/, "") || "", // Remove trailing underscore if present
+    version: match[2],
+  };
 }
 
 function createMessageTraits(message: proto.Type) {
   const traitName = `${lowercaseFirstLetter(message.name)}Traits`;
-  const serializeFunctionName = `serialize${message.name}`;
-  const deserializeFunctionName = `deserialize${message.name}`;
-  const definition = `const ${traitName} = {
-  serialize: ${serializeFunctionName},
-  deserialize: ${deserializeFunctionName},
-};\n\n`;
+  const serialize = getSerializerFunctionName(message.name);
+  const deserialize = getDeserializerFunctionName(message.name);
+  const definition = `
+const ${traitName} = {
+  deserialize: ${deserialize},
+  serialize: ${serialize},
+};\n`;
   return {
     definition,
     name: traitName,
-    imports: [serializeFunctionName, deserializeFunctionName],
+    imports: [serialize, deserialize],
   };
 }
 
