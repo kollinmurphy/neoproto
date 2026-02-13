@@ -14,15 +14,20 @@ const outDir = `${__dirname}../data/dist`;
 
 async function main() {
   if (existsSync(outDir)) {
+    const canOverwrite =
+      process.argv.includes("--force") || process.argv.includes("-f");
+    if (!canOverwrite) {
+      console.error(
+        `Output directory ${outDir} already exists. Use --force or -f to overwrite.`,
+      );
+      process.exit(1);
+    }
     await rm(outDir, { force: true, recursive: true });
   }
   await mkdir(`${outDir}/protobuf`, { recursive: true });
-  const { namespace, root } = await runProtobufjsCli(
-    protoPath,
-    `${outDir}/protobuf`,
-  );
+
+  const { namespace } = await runProtobufjsCli(protoPath, `${outDir}/protobuf`);
   const messageNames = Object.keys(namespace.nested ?? {});
-  console.log(`Messages in ${protoPath}: ${messageNames.join(", ")}`);
 
   await writeFile(
     `${outDir}/serialization.ts`,
@@ -55,4 +60,11 @@ async function main() {
   console.log(`Wrote traits to ${outDir}/traits.ts`);
 }
 
-main();
+main()
+  .then(() => {
+    console.log("\nAll tasks completed successfully!\n");
+  })
+  .catch((err) => {
+    console.error("Error:", err);
+    process.exit(1);
+  });
