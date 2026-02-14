@@ -1,32 +1,71 @@
 import proto from "protobufjs";
 import { createMultilineComment } from "../utils/comments.js";
-import { getEnums, getMessages, isRequiredField } from "../utils/protobuf.js";
+import {
+  getChildNamespaces,
+  getEnums,
+  getMessages,
+  isRequiredField,
+} from "../utils/protobuf.js";
 import { logError } from "../utils/logger.js";
+import { findDuplicates } from "../utils/array-manipulation.js";
 
 const ENUM_UNSPECIFIED_REGEX = /UNSPECIFIED|UNKNOWN/i;
 
-function createNamespaceTypes(namespace: proto.NamespaceBase): string {
+function createRootNamespaceTypes(namespace: proto.NamespaceBase): string {
+  const result = createNestedNamespaceTypes(namespace);
+  const duplicatedExports = findDuplicates(result.exports);
+  if (duplicatedExports.length > 0) {
+    logError(
+      `Duplicate type names found: ${duplicatedExports.join(
+        ", ",
+      )}. Please ensure all message and enum names are unique across the entire namespace hierarchy.`,
+    );
+  }
+  return `${result.content}
+export type {
+  ${result.exports.join(",\n  ")},
+};
+`;
+}
+
+function createNestedNamespaceTypes(namespace: proto.NamespaceBase) {
   const messages = getMessages(namespace);
   const messagesContent = messages.reduce(
     (content, message) => content + createMessageInterface(message),
     "",
   );
 
-  const enumContent = getEnums(namespace).reduce(
+  const enums = getEnums(namespace);
+  const enumContent = enums.reduce(
     (content, enumType) => content + createEnumType(enumType),
     "",
   );
-  const exports = [
-    ...messages.map((m) => m.name),
-    ...getEnums(namespace).map((e) => e.name),
-  ].sort();
 
-  return `${messagesContent}
+  const children = getChildNamespaces(namespace);
+  const nestedContent: { content: string; exports: string[] } = children.reduce(
+    (data, childNamespace) => {
+      const childTypes = createNestedNamespaceTypes(childNamespace);
+      return {
+        content: data.content + childTypes.content,
+        exports: [...data.exports, ...childTypes.exports],
+      };
+    },
+    { content: "", exports: [] as string[] },
+  );
+
+  const exports: string[] = [
+    ...messages.map((m) => m.name),
+    ...enums.map((e) => e.name),
+    ...nestedContent.exports,
+  ];
+
+  return {
+    content: `${messagesContent}
 ${enumContent}
-export type {
-  ${exports.join(",\n  ")},
-};
-`;
+${nestedContent.content}
+`,
+    exports,
+  };
 }
 
 function createEnumType(enumType: proto.Enum): string {
@@ -116,4 +155,4 @@ function convertToTypescriptType(protoType: string): string {
   }
 }
 
-export { createNamespaceTypes };
+export { createRootNamespaceTypes };

@@ -92,6 +92,7 @@ function createMessageTraits(message: proto.Type) {
   const definition = `
 const ${traitName} = {
   deserialize: ${deserialize},
+  id: ${id},
   name: "${message.name}",
   serialize: ${serialize},
 };\n`;

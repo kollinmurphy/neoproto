@@ -2,10 +2,10 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { runProtobufjsCli } from "./pbcli.js";
 import { createNamespaceSerializers } from "./generators/serialization.js";
-import { createNamespaceTypes } from "./generators/types.js";
+import { createRootNamespaceTypes } from "./generators/types.js";
 import { createNamespaceTraits } from "./generators/traits.js";
-import { createNamespaceWrappers } from "./generators/wrap.js";
-import { createNamespaceUnwrappers } from "./generators/unwrap.js";
+import { createRootNamespaceWrappers } from "./generators/wrap.js";
+import { createRootNamespaceUnwrappers } from "./generators/unwrap.js";
 import { associateMessages } from "./utils/associations.js";
 import { getMessages } from "./utils/protobuf.js";
 import { logError } from "./utils/logger.js";
@@ -109,13 +109,16 @@ async function main() {
   );
   console.log(`Wrote serialization functions to ${outDir}/serialization.ts`);
 
-  await writeFile(`${outDir}/wrap.ts`, createNamespaceWrappers(namespace));
+  await writeFile(`${outDir}/wrap.ts`, createRootNamespaceWrappers(namespace));
   console.log(`Wrote wrapper functions to ${outDir}/wrap.ts`);
 
-  await writeFile(`${outDir}/unwrap.ts`, createNamespaceUnwrappers(namespace));
+  await writeFile(
+    `${outDir}/unwrap.ts`,
+    createRootNamespaceUnwrappers(namespace),
+  );
   console.log(`Wrote unwrapper functions to ${outDir}/unwrap.ts`);
 
-  await writeFile(`${outDir}/types.ts`, createNamespaceTypes(namespace));
+  await writeFile(`${outDir}/types.ts`, createRootNamespaceTypes(namespace));
   console.log(`Wrote TypeScript interfaces to ${outDir}/types.ts`);
 
   await writeFile(

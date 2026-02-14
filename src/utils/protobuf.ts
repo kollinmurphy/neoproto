@@ -21,3 +21,14 @@ export function getEnums(namespace: proto.Namespace): proto.Enum[] {
     .filter((nested) => nested instanceof proto.Enum)
     .map((enumType) => enumType as proto.Enum);
 }
+
+export function getChildNamespaces(
+  namespace: proto.Namespace,
+): proto.NamespaceBase[] {
+  return Object.values(namespace.nested ?? {}).filter(
+    (nested) =>
+      nested instanceof proto.Namespace ||
+      nested instanceof proto.Root ||
+      nested instanceof proto.Type,
+  ) as proto.NamespaceBase[];
+}

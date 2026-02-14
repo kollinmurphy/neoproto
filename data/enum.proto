@@ -16,8 +16,16 @@ enum Corpus {
 
 /* MessageId: 3 */
 message SearchRequest {
+
+  message Nested {
+    required int32 id = 1;
+    required string name = 2;
+  }
+
   // optional string query = 1;
   // optional int32 page_number = 2;
   // optional int32 results_per_page = 3;
   required Corpus corpus1 = 4;
+  required Corpus corpus2 = 5;
+  required Nested nested = 6;
 }
