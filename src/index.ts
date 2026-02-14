@@ -60,8 +60,9 @@ async function runPrettier(directory: string) {
  * @param flag - The flag to check for (e.g., "--force").
  * @returns True if the flag is present, false otherwise.
  */
-function getFlag(flag: string): boolean {
-  return process.argv.slice(2).includes(flag);
+function getFlag(flag: string, shortFlag?: string): boolean {
+  const args = process.argv.slice(2);
+  return args.includes(flag) || Boolean(shortFlag && args.includes(shortFlag));
 }
 
 /**
@@ -73,10 +74,11 @@ function getFlag(flag: string): boolean {
  */
 function getParameter(
   param: string,
+  shortParam: string,
   { required }: { required: boolean },
 ): string {
   const args = process.argv.slice(2);
-  const idx = args.findIndex((arg) => arg === param);
+  const idx = args.findIndex((arg) => arg === param || arg === shortParam);
   if (idx !== -1 && idx < args.length - 1) {
     return args[idx + 1]!;
   }
@@ -217,10 +219,10 @@ async function main() {
     printUsage();
     process.exit(0);
   }
-  const outDir = getParameter("--out-dir", { required: true });
-  const protoPath = getParameter("--proto", { required: true });
-  const testDir = getParameter("--test-dir", { required: false });
-  const flagForce = getFlag("--force");
+  const outDir = getParameter("--out-dir", "-o", { required: true });
+  const protoPath = getParameter("--proto", "-p", { required: true });
+  const testDir = getParameter("--test-dir", "-t", { required: false });
+  const flagForce = getFlag("--force", "-f");
   const flagNoPrettier = getFlag("--no-prettier");
   await run({ outDir, protoPath, testDir, flagForce, flagNoPrettier });
 }
