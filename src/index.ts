@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { runProtobufjsCli } from "./pbcli.js";
 import { createNamespaceSerializers } from "./generators/serialization.js";
 import { createNamespaceTypes } from "./generators/types.js";
@@ -9,6 +9,7 @@ import { createNamespaceUnwrappers } from "./generators/unwrap.js";
 import { associateMessages } from "./utils/associations.js";
 import { getMessages } from "./utils/protobuf.js";
 import { logError } from "./utils/logger.js";
+import prettier from "prettier";
 
 function printUsage() {
   console.log(`
@@ -23,6 +24,20 @@ Options:
 Example:
   ${process.argv[1]} --proto ./example.proto --out-dir ./generated --force --test-dir ./tests
 `);
+}
+
+async function runPrettier(directory: string) {
+  const tsFiles = await readdir(directory);
+  const tsFilePaths = tsFiles
+    .filter((file) => file.endsWith(".ts"))
+    .map((file) => `${directory}/${file}`);
+
+  for (const filePath of tsFilePaths) {
+    const input = await readFile(filePath, "utf-8");
+    const output = await prettier.format(input, { parser: "typescript" });
+    await writeFile(filePath, output);
+    console.log(`Formatted ${filePath} with Prettier`);
+  }
 }
 
 async function main() {
@@ -127,7 +142,11 @@ export * from "./wrap.js";
       `// Placeholder for serialization tests. Implement your tests here.`,
     );
     console.log(`Wrote test file to ${testDir}/serialization.spec.ts`);
+
+    if (testDir !== outDir) await runPrettier(testDir);
   }
+
+  await runPrettier(outDir);
 }
 
 main()

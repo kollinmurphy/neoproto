@@ -15,3 +15,9 @@ export function getMessages(namespace: proto.Namespace): proto.Type[] {
     .filter((nested) => nested instanceof proto.Type)
     .map((type) => type as proto.Type);
 }
+
+export function getEnums(namespace: proto.Namespace): proto.Enum[] {
+  return Object.values(namespace.nested ?? {})
+    .filter((nested) => nested instanceof proto.Enum)
+    .map((enumType) => enumType as proto.Enum);
+}

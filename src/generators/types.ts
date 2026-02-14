@@ -1,18 +1,59 @@
 import proto from "protobufjs";
 import { createMultilineComment } from "../utils/comments.js";
-import { getMessages, isRequiredField } from "../utils/protobuf.js";
+import { getEnums, getMessages, isRequiredField } from "../utils/protobuf.js";
+import { logError } from "../utils/logger.js";
+
+const ENUM_UNSPECIFIED_REGEX = /UNSPECIFIED|UNKNOWN/i;
 
 function createNamespaceTypes(namespace: proto.NamespaceBase): string {
-  let typesContent = "";
   const messages = getMessages(namespace);
-  for (const message of messages) {
-    typesContent += createMessageInterface(message);
-  }
-  typesContent += `export type {
-  ${messages.map((m) => m.name).join(",\n  ")},
+  const messagesContent = messages.reduce(
+    (content, message) => content + createMessageInterface(message),
+    "",
+  );
+
+  const enumContent = getEnums(namespace).reduce(
+    (content, enumType) => content + createEnumType(enumType),
+    "",
+  );
+  const exports = [
+    ...messages.map((m) => m.name),
+    ...getEnums(namespace).map((e) => e.name),
+  ].sort();
+
+  return `${messagesContent}
+${enumContent}
+export type {
+  ${exports.join(",\n  ")},
 };
 `;
-  return typesContent;
+}
+
+function createEnumType(enumType: proto.Enum): string {
+  let enumDef = "";
+  if (enumType.comment) {
+    enumDef += createMultilineComment(enumType.comment) + "\n";
+  }
+  enumDef += `type ${enumType.name} =\n`;
+  const values = Object.entries(enumType.values);
+  if (values[0]?.[1] !== 0) {
+    logError(
+      `Enum ${enumType.name} does not start with a value of 0. This may cause issues with serialization. Please ensure the first enum value is 0.`,
+    );
+  }
+  if (!ENUM_UNSPECIFIED_REGEX.test(values[0]?.[0] ?? "")) {
+    logError(
+      `First enum value for ${enumType.name} is "${values[0]?.[0]}". It's expected to have an "UNSPECIFIED" or "UNKNOWN" value as the first enum entry to represent an undefined state.`,
+    );
+  }
+  values.forEach(([key, value], index) => {
+    enumDef += `  | '${key}' // ${value}`;
+    if (index < values.length - 1) {
+      enumDef += "\n";
+    }
+  });
+  enumDef += `\n;\n\n`;
+  return enumDef;
 }
 
 function createMessageInterface(message: proto.Type) {

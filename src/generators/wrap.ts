@@ -1,6 +1,11 @@
 import proto from "protobufjs";
 import { capitalizeFirstLetter } from "../utils/string-manipulation.js";
-import { getFields, getMessages, isRequiredField } from "../utils/protobuf.js";
+import {
+  getEnums,
+  getFields,
+  getMessages,
+  isRequiredField,
+} from "../utils/protobuf.js";
 
 function createNamespaceWrappers(namespace: proto.Namespace): string {
   let definitions = "";
@@ -17,12 +22,29 @@ function createNamespaceWrappers(namespace: proto.Namespace): string {
     exports.push(...mapperExports);
     imports.push(...mapperImports);
   }
+
+  const enumTypes = getEnums(namespace);
+  for (const enumType of enumTypes) {
+    const {
+      definitions: enumDefinitions,
+      exports: enumExports,
+      imports: enumImports,
+    } = createEnumWrapperFunction(enumType, namespace.name);
+    definitions += enumDefinitions;
+    exports.push(...enumExports);
+    imports.push(...enumImports);
+  }
+
   const dedupedImports = [...new Set(imports)];
   return `import type { ${dedupedImports.join(", ")} } from "./types.js";
 import { ${namespace.name} } from "./protobuf/${namespace.name}.js";
 
 function isNonNullish<T>(value: T): value is NonNullable<T> {
   return value !== null && value !== undefined;
+}
+
+function assertUnreachable(x: never): never {
+  throw new Error(\`Unexpected value: \${x}\`);
 }
 ${definitions}
 export {
@@ -52,6 +74,9 @@ function createRequiredFieldWrapExpression(field: proto.Field, name: string) {
     case "uint64":
       return `typeof ${name} === "number" ? BigInt(${name}) : ${name}.toBigInt()`;
     default:
+      if (field.resolvedType instanceof proto.Enum) {
+        return `${getEnumWrapperFunctionName(field.resolvedType.name)}(${name})`;
+      }
       return `${getWrapperFunctionName(fieldType)}(${name})`;
   }
 }
@@ -101,8 +126,40 @@ function ${functionName}(input: ${namespace}.I${message.name}): ${message.name} 
   };
 }
 
+function createEnumWrapperFunction(enumType: proto.Enum, namespace: string) {
+  const functionName = getEnumWrapperFunctionName(enumType.name);
+  const definitions = `
+/**
+ * Maps a ${enumType.name} protobuf enum value to its corresponding string literal type.
+ * @param input ${enumType.name} protobuf enum value to map
+ * @returns String literal type corresponding to the enum value
+ */
+function ${functionName}(input: ${namespace}.${enumType.name}): ${enumType.name} {
+  switch (input) {
+    ${Object.entries(enumType.values)
+      .map(
+        ([key, value]) => `case ${namespace}.${enumType.name}.${key}:
+      return "${key}" as ${enumType.name};`,
+      )
+      .join("\n    ")}
+    default:
+      assertUnreachable(input);
+  }
+}
+`;
+  return {
+    definitions,
+    exports: [functionName],
+    imports: [enumType.name],
+  };
+}
+
 function getWrapperFunctionName(messageName: string) {
   return `map${capitalizeFirstLetter(messageName)}ProtoToObject`;
+}
+
+function getEnumWrapperFunctionName(enumName: string) {
+  return `map${capitalizeFirstLetter(enumName)}ProtoToValue`;
 }
 
 export { createNamespaceWrappers, getWrapperFunctionName };

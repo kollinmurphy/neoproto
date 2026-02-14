@@ -1,0 +1,23 @@
+syntax = "proto2";
+
+package My_Enum_ApiV2;
+
+/** This is an example of an enum definition in Protocol Buffers. */
+enum Corpus {
+  CORPUS_UNSPECIFIED = 0;
+  CORPUS_UNIVERSAL = 1;
+  CORPUS_WEB = 2;
+  CORPUS_IMAGES = 3;
+  CORPUS_LOCAL = 4;
+  CORPUS_NEWS = 5;
+  CORPUS_PRODUCTS = 6;
+  CORPUS_VIDEO = 7;
+}
+
+/* MessageId: 3 */
+message SearchRequest {
+  // optional string query = 1;
+  // optional int32 page_number = 2;
+  // optional int32 results_per_page = 3;
+  required Corpus corpus1 = 4;
+}
