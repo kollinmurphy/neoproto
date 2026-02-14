@@ -7,6 +7,10 @@ on:
   release:
     types: [created]
 
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 jobs:
   npm-publish:
     runs-on: ubuntu-latest
@@ -17,7 +21,6 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org/
       - run: npm ci
+      - run: npm run build --if-present
       - run: npm test
       - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.npm_token}}
