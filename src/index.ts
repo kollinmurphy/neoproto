@@ -10,22 +10,37 @@ import { associateMessages } from "./utils/associations.js";
 import { getMessages } from "./utils/protobuf.js";
 import { logError } from "./utils/logger.js";
 import prettier from "prettier";
+import { generateNamespaceTests } from "./generators/test.js";
+import { executeCommand, getRelativePath } from "./utils/system.js";
+import { fileURLToPath } from "node:url";
+import process from "node:process";
 
+const isMain = process.argv[1] === fileURLToPath(import.meta.url);
+
+/**
+ * Prints usage instructions for the CLI tool.
+ */
 function printUsage() {
   console.log(`
-Usage: ${process.argv[1]} --proto <path/to/file.proto> --out-dir <output/directory> [--force] [--test-dir <path/to/test/dir>]
+Example usage: ${process.argv[1]} --proto /path/to/file.proto --out-dir ./dist --test-dir ./dist/test
 
-Options:
-  --proto, -p       Path to the .proto file to process.
-  --out-dir, -o    Directory where the generated files will be saved.
-  --force, -f      Overwrite the output directory if it already exists.
-  --test-dir, -t    Directory where the test files will be saved.
+Parameters:
+  ${"--proto, -p".padEnd(20)}(required) Path to the .proto file to process.
+  ${"--out-dir, -o".padEnd(20)}(required) Directory where the generated files will be saved.
+  ${"--test-dir, -t".padEnd(20)}(optional) Directory where the test files will be saved.
 
-Example:
-  ${process.argv[1]} --proto ./example.proto --out-dir ./generated --force --test-dir ./tests
+Flags:
+  ${"--force, -f".padEnd(20)}Overwrite the output directory if it already exists. (Use with caution! This will delete all existing files in the output directory.)
+  ${"--no-prettier".padEnd(20)}Skip formatting the generated files with Prettier.
+  ${"--no-test-execution".padEnd(20)}Skip executing the generated tests after creation. This is only relevant if a test directory is specified.
 `);
 }
 
+/**
+ * Formats all .ts files in the specified directory using Prettier.
+ * @param directory - The directory containing the .ts files to format.
+ * @returns A promise that resolves when all files have been formatted.
+ */
 async function runPrettier(directory: string) {
   const tsFiles = await readdir(directory);
   const tsFilePaths = tsFiles
@@ -40,47 +55,74 @@ async function runPrettier(directory: string) {
   }
 }
 
-async function main() {
+/**
+ * Checks if a specific flag is present in the command-line arguments.
+ * @param flag - The flag to check for (e.g., "--force").
+ * @returns True if the flag is present, false otherwise.
+ */
+function getFlag(flag: string): boolean {
+  return process.argv.slice(2).includes(flag);
+}
+
+/**
+ * Retrieves the value of a specific parameter from the command-line arguments.
+ * @param param - The parameter to retrieve (e.g., "--out-dir").
+ * @param options - An object specifying whether the parameter is required.
+ * @returns The value of the parameter if found, or an empty string if not found and not required.
+ * @throws If the parameter is required but not found, the function will log an error, print usage instructions, and exit the process.
+ */
+function getParameter(
+  param: string,
+  { required }: { required: boolean },
+): string {
   const args = process.argv.slice(2);
-
-  if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
+  const idx = args.findIndex((arg) => arg === param);
+  if (idx !== -1 && idx < args.length - 1) {
+    return args[idx + 1]!;
+  }
+  if (required) {
+    logError(`Missing required parameter: ${param}`, "");
     printUsage();
-    process.exit(0);
-  }
-
-  const outDirIdx = args.findIndex(
-    (arg) => arg === "--out-dir" || arg === "-o",
-  );
-  if (outDirIdx === -1 || outDirIdx === args.length - 1) {
-    logError(
-      "Output directory not specified. Use --out-dir or -o followed by the desired path.",
-      "",
-    );
     process.exit(1);
   }
+  return "";
+}
 
-  const protoPathIdx = args.findIndex(
-    (arg) => arg === "--proto" || arg === "-p",
-  );
-  if (protoPathIdx === -1 || protoPathIdx === args.length - 1) {
-    logError(
-      "Proto file path not specified. Use --proto or -p followed by the path to your .proto file.",
-      "",
-    );
-    process.exit(1);
-  }
+/**
+ * Options needed to run the main function of the CLI tool.
+ */
+interface Options {
+  /** The output directory where generated files will be saved. */
+  outDir: string;
 
-  const testDirIdx = args.findIndex(
-    (arg) => arg === "--test-dir" || arg === "-t",
-  );
+  /** The path to the .proto file to process. */
+  protoPath: string;
 
-  const protoPath = args[protoPathIdx + 1]!;
-  const outDir = args[outDirIdx + 1]!;
-  const testDir = testDirIdx !== -1 ? args[testDirIdx + 1]! : null;
-  const canOverwrite = args.includes("--force") || args.includes("-f");
+  /** The output directory where test files will be saved. */
+  testDir?: string;
 
+  /** Whether to forcibly overwrite existing output directories. */
+  flagForce?: boolean;
+
+  /** Whether to skip formatting generated files with Prettier. */
+  flagNoPrettier?: boolean;
+}
+
+/**
+ * The main function that orchestrates the generation of serialization functions, traits, types, and tests based on a .proto file.
+ * @param options - An object containing the necessary options to run the function, including output directory, .proto file path, test directory, and flags for force and Prettier.
+ * @returns A promise that resolves when all tasks are completed, or rejects if any errors occur during the process.
+ * @throws If the output directory or test directory already exists and the --force flag is not provided, the function will log an error and exit the process.
+ */
+async function run({
+  outDir,
+  protoPath,
+  testDir,
+  flagForce,
+  flagNoPrettier,
+}: Options) {
   if (existsSync(outDir)) {
-    if (!canOverwrite) {
+    if (!flagForce) {
       logError(
         `Output directory ${outDir} already exists. Use --force or -f to overwrite.`,
       );
@@ -91,7 +133,7 @@ async function main() {
   await mkdir(`${outDir}/protobuf`, { recursive: true });
 
   if (testDir && existsSync(testDir)) {
-    if (!canOverwrite) {
+    if (!flagForce) {
       logError(
         `Test directory ${testDir} already exists. Use --force or -f to overwrite.`,
       );
@@ -142,28 +184,64 @@ export * from "./wrap.js";
     await mkdir(testDir, { recursive: true });
     await writeFile(
       `${testDir}/serialization.spec.ts`,
-      `// Placeholder for serialization tests. Implement your tests here.`,
+      generateNamespaceTests(namespace, getRelativePath(testDir, outDir)),
     );
-    console.log(`Wrote test file to ${testDir}/serialization.spec.ts`);
+    console.log(`Wrote unit test file to ${testDir}/serialization.spec.ts`);
 
-    if (testDir !== outDir) await runPrettier(testDir);
+    if (testDir !== outDir && !flagNoPrettier) await runPrettier(testDir);
   }
 
-  await runPrettier(outDir);
+  if (!flagNoPrettier) await runPrettier(outDir);
+
+  if (!process.argv.includes("--no-test-execution") && testDir) {
+    console.log("\nRunning generated tests...\n");
+    try {
+      await executeCommand(
+        process.argv[0] || "node",
+        ["--import tsx --test", `${testDir}/serialization.spec.ts`],
+        process.cwd(),
+      );
+    } catch (err) {
+      logError("Generated unit tests failed.", "");
+    }
+  }
 }
 
-main()
-  .then(() => {
-    if (!process.exitCode) {
-      console.log("\nAll tasks completed successfully!\n");
-    } else {
-      logError(
-        "One or more tasks completed with errors. Please check the logs above for details.",
-        "",
-      );
-    }
-  })
-  .catch((err) => {
-    console.error("Error:", err);
-    process.exit(1);
-  });
+/**
+ * The main entry point of the CLI tool. Parses command-line arguments, validates them, and invokes the main function to generate code based on the provided .proto file.
+ * If the required parameters are missing or if the output/test directories already exist without the --force flag, the function will log appropriate error messages and exit the process.
+ * If the --help or -h flag is provided, the function will print usage instructions and exit.
+ */
+async function main() {
+  if (process.argv.length <= 2 || getFlag("--help") || getFlag("-h")) {
+    printUsage();
+    process.exit(0);
+  }
+  const outDir = getParameter("--out-dir", { required: true });
+  const protoPath = getParameter("--proto", { required: true });
+  const testDir = getParameter("--test-dir", { required: false });
+  const flagForce = getFlag("--force");
+  const flagNoPrettier = getFlag("--no-prettier");
+  await run({ outDir, protoPath, testDir, flagForce, flagNoPrettier });
+}
+
+if (isMain)
+  main()
+    .then(() => {
+      if (!process.exitCode) {
+        console.log("\nAll tasks completed successfully!\n");
+        process.exit(0);
+      } else {
+        logError(
+          "One or more tasks completed with errors. Please check the logs above for details.",
+          "",
+        );
+        process.exit(1);
+      }
+    })
+    .catch((err) => {
+      console.error("Error:", err);
+      process.exit(1);
+    });
+
+export { run };
