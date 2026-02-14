@@ -1,18 +1,26 @@
 {
-  "name": "project",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "neoproto",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kollinmurphy/neoproto.git"
+  },
+  "description": "An opinionated wrapper around the Protobuf TypeScript compiler that generates idiomatic types, serialization functions, and documentation.",
+  "main": "src/index.ts",
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
-    "postinstall": "patch-package",
-    "preprocess": "rm -rf data/dist && mkdir -p data/dist && pbjs --target json --out data/dist/example.json data/example.proto && pbjs --target static-module --wrap es6 --dependency protobufjs --out data/dist/example.js data/example.proto && pbts --out data/dist/example.d.ts data/dist/example.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "postinstall": "patch-package"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "protobuf",
+    "typescript",
+    "codegen",
+    "serialization",
+    "deserialization"
+  ],
+  "author": "Kollin Murphy",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "^25.2.3",
     "patch-package": "^8.0.1",
