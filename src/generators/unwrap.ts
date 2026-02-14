@@ -12,8 +12,16 @@ import { logError } from "../utils/logger.js";
 const INPUT_VARIABLE = "input";
 const MAP_VARIABLE = "item";
 
+/**
+ * The set of dependencies that an inner function may require. If not needed, they will not be generated.
+ */
 type Dependencies = "long" | "isNonNullish" | "assertUnreachable";
 
+/**
+ * Generates unwrapper functions for all messages and enums in a protobuf namespace, including nested namespaces, and returns the content of the unwrapper file as a string.
+ * @param namespace - The protobuf namespace to create unwrapper functions for
+ * @returns A string containing the content of the unwrapper file with all the generated unwrapper functions for the protobuf namespace
+ */
 function createRootNamespaceUnwrappers(namespace: proto.Namespace): string {
   const {
     content: definitions,
@@ -57,6 +65,12 @@ export {
 `;
 }
 
+/**
+ * Recursively creates unwrapper functions for all messages and enums in a protobuf namespace, including nested namespaces.
+ * @param namespace - The protobuf namespace to create unwrapper functions for
+ * @param prefix - The prefix to use for the unwrapper function names, which should correspond to the namespace hierarchy (e.g., "MyNamespace.SubNamespace")
+ * @returns An object containing the content, exports, imports, and dependencies for the unwrapper functions in the namespace
+ */
 function createNestedNamespaceUnwrappers(
   namespace: proto.Namespace,
   prefix: string,
@@ -127,6 +141,12 @@ function createNestedNamespaceUnwrappers(
   };
 }
 
+/**
+ * Creates a TS expression for a required field, or for an optional field that has already been checked for non-nullability.
+ * @param field - The protobuf field to create the expression for
+ * @param name - The name of the variable to use in the expression
+ * @returns An object containing the content and dependencies for the field
+ */
 function createRequiredFieldUnwrapExpression(
   field: proto.Field,
   name: string,
@@ -170,6 +190,11 @@ function createRequiredFieldUnwrapExpression(
   }
 }
 
+/**
+ * Creates a TS expression for a field that may be optional. If the field is
+ * @param field - The protobuf field to create the expression for
+ * @returns An object containing the content and dependencies for the field
+ */
 function createMaybeOptionalFieldUnwrapExpression(field: proto.Field): {
   content: string;
   dependencies: Dependencies[];
@@ -214,6 +239,12 @@ function createMaybeRepeatedFieldUnwrapExpression(field: proto.Field): {
   };
 }
 
+/**
+ * Creates an unwrapper function for a protobuf message, which maps a plain object to the corresponding protobuf interface. The function will handle both required and optional fields, as well as repeated fields, and will use the appropriate unwrapper functions for nested messages and enums as needed.
+ * @param message - The protobuf message to create the unwrapper function for
+ * @param prefix - The prefix to use for the unwrapper function name, which should correspond to the namespace hierarchy (e.g., "MyNamespace.SubNamespace")
+ * @returns An object containing the content, exports, imports, and dependencies for the unwrapper function for the message
+ */
 function createMessageUnwrapperFunctions(message: proto.Type, prefix: string) {
   const functionName = getUnwrapperFunctionName(message.name);
   const fieldResults = getFields(message).map(
@@ -243,6 +274,12 @@ function ${functionName}(${INPUT_VARIABLE}: ${message.name}): ${prefix}.I${messa
   };
 }
 
+/**
+ * Creates an unwrapper function for a protobuf enum, which maps a value of the enum type to the corresponding protobuf enum value. The function will use a switch statement to handle all possible values of the enum and will throw an error if an unexpected value is encountered.
+ * @param enumType - The protobuf enum to create the unwrapper function for
+ * @param prefix - The prefix to use for the unwrapper function name, which should correspond to the namespace hierarchy (e.g., "MyNamespace.SubNamespace")
+ * @returns An object containing the content, exports, imports, and dependencies for the unwrapper function for the enum
+ */
 function createEnumUnwrapperFunction(enumType: proto.Enum, prefix: string) {
   const functionName = getEnumUnwrapperFunctionName(enumType.name);
   const definitions = `
@@ -271,10 +308,20 @@ ${Object.entries(enumType.values)
   };
 }
 
+/**
+ * Generates the name of the unwrapper function for a given protobuf message, which follows the convention of "map{MessageName}ObjectToProto" where {MessageName} is the name of the protobuf message with the first letter capitalized.
+ * @param messageName - The name of the protobuf message to generate the unwrapper function name for
+ * @returns The name of the unwrapper function for the given protobuf message
+ */
 function getUnwrapperFunctionName(messageName: string) {
   return `map${capitalizeFirstLetter(messageName)}ObjectToProto`;
 }
 
+/**
+ * Generates the name of the unwrapper function for a given protobuf enum, which follows the convention of "map{EnumName}ValueToProto" where {EnumName} is the name of the protobuf enum with the first letter capitalized.
+ * @param enumName - The name of the protobuf enum to generate the unwrapper function name for
+ * @returns The name of the unwrapper function for the given protobuf enum
+ */
 function getEnumUnwrapperFunctionName(enumName: string) {
   return `map${capitalizeFirstLetter(enumName)}ValueToProto`;
 }

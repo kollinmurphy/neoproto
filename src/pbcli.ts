@@ -9,7 +9,7 @@ import pbcli from "protobufjs-cli";
  * @returns - The protobufjs namespace and root objects for the compiled .proto file.
  * @throws - If the namespace cannot be found in the compiled .proto file.
  */
-async function runProtobufjsCli(protoPath: string, outDir: string) {
+export async function runProtobufjsCli(protoPath: string, outDir: string) {
   const { root } = proto.parse(await readFile(protoPath, "utf8"), {
     alternateCommentMode: true,
   });
@@ -47,5 +47,3 @@ async function runProtobufjsCli(protoPath: string, outDir: string) {
 
   return { namespace, root };
 }
-
-export { runProtobufjsCli };

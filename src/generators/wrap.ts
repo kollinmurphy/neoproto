@@ -8,11 +8,19 @@ import {
   isRequiredField,
 } from "../utils/protobuf.js";
 
-type Dependency = "isNonNullish" | "assertUnreachable";
+/**
+ * The set of dependencies that an inner function may require. If not needed, they will not be generated.
+ */
+type Dependency = "isNonNullable" | "assertUnreachable";
 
 const INPUT_VARIABLE = "input";
 const MAP_VARIABLE = "item";
 
+/**
+ * Generates wrapper functions for all messages and enums in a protobuf namespace, including nested namespaces, and returns the content of the wrapper file as a string.
+ * @param namespace - The protobuf namespace to create wrapper functions for
+ * @returns A string containing the content of the wrapper file with all the generated wrapper functions for the protobuf namespace
+ */
 function createRootNamespaceWrappers(namespace: proto.Namespace): string {
   const {
     content: definitions,
@@ -25,9 +33,9 @@ function createRootNamespaceWrappers(namespace: proto.Namespace): string {
 import { ${namespace.name} } from "./protobuf/${namespace.name}.js";`;
 
   const functionDeclarations = [
-    ...(dependencies.has("isNonNullish")
+    ...(dependencies.has("isNonNullable")
       ? [
-          `function isNonNullish<T>(value: T): value is NonNullable<T> {
+          `function isNonNullable<T>(value: T): value is NonNullable<T> {
   return value !== null && value !== undefined;
 }
 `,
@@ -53,6 +61,12 @@ export {
 `;
 }
 
+/**
+ * Recursively creates wrapper functions for all messages and enums in a protobuf namespace, including nested namespaces.
+ * @param namespace - The protobuf namespace to create wrapper functions for
+ * @param prefix - The prefix to use for the wrapper function names, which should correspond to the namespace hierarchy (e.g., "MyNamespace.SubNamespace")
+ * @returns An object containing the content, exports, imports, and dependencies for the wrapper functions in the namespace
+ */
 function createNestedNamespaceWrappers(
   namespace: proto.Namespace,
   prefix: string,
@@ -120,6 +134,12 @@ function createNestedNamespaceWrappers(
   };
 }
 
+/**
+ * Creates a TS expression for a required field, or for an optional field that has already been checked for non-nullability.
+ * @param field - The protobuf field to create the expression for
+ * @param name - The name of the variable to use in the expression
+ * @returns An object containing the content and dependencies for the field
+ */
 function createRequiredFieldWrapExpression(field: proto.Field, name: string) {
   const fieldType = field.resolvedType ? field.resolvedType.name : field.type;
   switch (fieldType) {
@@ -157,6 +177,17 @@ function createRequiredFieldWrapExpression(field: proto.Field, name: string) {
   }
 }
 
+/**
+ * Creates a TS expression for a field that may be optional. If the field is
+ * required, it will simply create a required field expression. If the field is
+ * optional, it will create an expression that conditionally includes the field
+ * in the resulting object if it is non-nullable. Note that for optional fields,
+ * if the default value (e.g., empty string, 0, false) is present, it will be
+ * omitted from the resulting object, as the protobufjs library treats missing
+ * fields and fields with default values as equivalent when decoding messages.
+ * @param field - The protobuf field to create the expression for
+ * @returns An object containing the content and dependencies for the field
+ */
 function createMaybeOptionalFieldWrapExpression(field: proto.Field): {
   content: string;
   dependencies: Dependency[];
@@ -166,17 +197,23 @@ function createMaybeOptionalFieldWrapExpression(field: proto.Field): {
     field,
     `input.${fieldName}`,
   );
-  const dependencies: Dependency[] = isRequiredField(field)
-    ? baseExpression.dependencies
-    : [...baseExpression.dependencies, "isNonNullish"];
+  const required = isRequiredField(field);
   return {
-    content: isRequiredField(field)
+    content: required
       ? `${fieldName}: ${baseExpression.content}`
-      : `...(isNonNullish(input.${fieldName}) ? { ${fieldName}: ${baseExpression.content} } : {})`,
-    dependencies,
+      : `...(isNonNullable(input.${fieldName}) ? { ${fieldName}: ${baseExpression.content} } : {})`,
+    dependencies: required
+      ? baseExpression.dependencies
+      : [...baseExpression.dependencies, "isNonNullable"],
   };
 }
 
+/**
+ * Creates a TS expression for a field that may be repeated.
+ * Note that for repeated fields, if the field is missing, it will be treated as an empty array.
+ * @param field - The protobuf field to create the expression for
+ * @returns An object containing the content and dependencies for the field
+ */
 function createMaybeRepeatedFieldWrapExpression(field: proto.Field): {
   content: string;
   dependencies: Dependency[];
@@ -193,6 +230,12 @@ function createMaybeRepeatedFieldWrapExpression(field: proto.Field): {
   };
 }
 
+/**
+ * Creates a wrapper function for a protobuf message type that maps a protobuf message to a plain object.
+ * @param namespace - The namespace in which the message type is defined
+ * @param message - The protobuf message type to create the wrapper function for
+ * @returns An object containing the definitions, exports, imports, and dependencies for the message wrapper function
+ */
 function createMessageWrapperFunctions(
   namespace: string,
   message: proto.Type,
@@ -227,6 +270,12 @@ function ${functionName}(${INPUT_VARIABLE}: ${namespace}.I${message.name}): ${me
   };
 }
 
+/**
+ * Creates a wrapper function for a protobuf enum type that maps enum values to their corresponding string literal types.
+ * @param enumType - The protobuf enum type to create the wrapper function for
+ * @param namespace - The namespace in which the enum type is defined
+ * @returns An object containing the definitions, exports, imports, and dependencies for the enum wrapper function
+ */
 function createEnumWrapperFunction(
   enumType: proto.Enum,
   namespace: string,
@@ -264,10 +313,20 @@ function ${functionName}(${INPUT_VARIABLE}: ${namespace}.${enumType.name}): ${en
   };
 }
 
+/**
+ * Generates a wrapper function name for a protobuf message type.
+ * @param messageName - The name of the protobuf message type
+ * @returns The generated wrapper function name for the message type
+ */
 function getWrapperFunctionName(messageName: string) {
   return `map${capitalizeFirstLetter(messageName)}ProtoToObject`;
 }
 
+/**
+ * Generates a wrapper function name for a protobuf enum type.
+ * @param enumName - The name of the protobuf enum type
+ * @returns The generated wrapper function name for the enum type
+ */
 function getEnumWrapperFunctionName(enumName: string) {
   return `map${capitalizeFirstLetter(enumName)}ProtoToValue`;
 }
