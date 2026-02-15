@@ -143,7 +143,7 @@ export * from "./wrap.js";
     try {
       await executeCommand(
         process.argv[0] || "node",
-        ["--import tsx --test", `${testDir}/serialization.spec.ts`],
+        ["--import", "tsx", "--test", `${testDir}/serialization.spec.ts`],
         process.cwd(),
       );
     } catch (err) {

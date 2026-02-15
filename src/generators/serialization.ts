@@ -48,7 +48,7 @@ import { ${dedupedWrapperImports.join(", ")} } from "./wrap.js";
 import { ${dedupedUnwrapperImports.join(", ")} } from "./unwrap.js";
 ${definitions}
 export {
-  ${exports.join(",\n  ")},
+  ${exports.sort().join(",\n  ")},
 };
 `;
 }
@@ -124,6 +124,7 @@ function getDeserializerFunctionName(messageName: string) {
 
 export {
   createNamespaceSerializers,
+  createMessageSerializers,
   getSerializerFunctionName,
   getDeserializerFunctionName,
 };

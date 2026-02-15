@@ -26,7 +26,7 @@ export function getRelativePath(dirA: string, dirB: string): string {
 
 /**
  * Executes a system command in a child process and returns a promise that resolves when the command completes.
- * @param command - The command to execute (e.g., "npm", "git")
+ * @param command - The command to execute
  * @param args - An array of arguments to pass to the command (e.g., ["install", "lodash"])
  * @param cwd - The working directory in which to execute the command
  * @returns A promise that resolves when the command completes successfully, or rejects if the command fails
@@ -37,7 +37,7 @@ export async function executeCommand(
   cwd: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, stdio: "inherit", shell: true });
+    const child = spawn(command, args, { cwd, stdio: "inherit" });
 
     child.on("error", (err) => {
       reject(err);
