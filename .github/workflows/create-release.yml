@@ -41,8 +41,7 @@ jobs:
       - name: Bump Version
         id: bump_version
         run: |
-          npm version ${{ github.event.inputs.version_type }} -m "chore: bump version to %s"
-          VERSION=$(node -p "require('./package.json').version")
+          VERSION=$(npm version ${{ github.event.inputs.version_type }} -m "chore: bump version to %s")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       - run: npm ci
