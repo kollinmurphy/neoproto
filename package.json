@@ -9,8 +9,9 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "start": "tsx src/index.ts",
-    "prepublishOnly": "npm run build"
+    "test": "node --import tsx --test test/**/*.spec.ts"
   },
   "bin": {
     "neoproto": "dist/cli.js"
