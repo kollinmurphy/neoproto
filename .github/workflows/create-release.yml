@@ -47,6 +47,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Require clean npm audit
+        run: npm audit --audit-level=high
+
       - run: npm run build
 
       - run: npm test

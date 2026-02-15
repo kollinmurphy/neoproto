@@ -65,7 +65,7 @@ function getParameter(
 async function main() {
   if (process.argv.length <= 2 || getFlag("--help") || getFlag("-h")) {
     printUsage();
-    return;
+    process.exit(0);
   }
   const outDir = getParameter("--out-dir", "-o", { required: true });
   const protoPath = getParameter("--proto", "-p", { required: true });
