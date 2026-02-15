@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { runProtobufjsCli } from "./pbcli.js";
