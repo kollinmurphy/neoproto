@@ -12,6 +12,9 @@
     "start": "tsx src/index.ts",
     "prepublishOnly": "npm run build"
   },
+  "bin": {
+    "neoproto": "dist/cli.js"
+  },
   "keywords": [
     "protobuf",
     "typescript",
