@@ -7,7 +7,6 @@ import {
   getMessages,
   isRequiredField,
   MaybeOneOfField,
-  OneOfField,
 } from "../utils/protobuf.js";
 import { logError } from "../utils/logger.js";
 
