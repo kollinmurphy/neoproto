@@ -10,8 +10,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.prod.json",
     "prepublishOnly": "npm run build",
-    "start": "tsx src/index.ts",
-    "test": "node --import tsx --test test/**/*.spec.ts",
+    "start": "tsx src/cli.ts",
+    "test": "node --import tsx --test \"test/**/*.spec.ts\"",
     "test:watch": "nodemon --ext ts --watch src --watch test --exec \"npm test\""
   },
   "bin": {

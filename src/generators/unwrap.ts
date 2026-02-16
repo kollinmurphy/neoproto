@@ -6,6 +6,8 @@ import {
   getFields,
   getMessages,
   isRequiredField,
+  MaybeOneOfField,
+  OneOfField,
 } from "../utils/protobuf.js";
 import { logError } from "../utils/logger.js";
 
@@ -239,6 +241,33 @@ function createMaybeRepeatedFieldUnwrapExpression(field: proto.Field): {
   };
 }
 
+function createMaybeOneOfFieldUnwrapExpression(field: MaybeOneOfField): {
+  content: string;
+  dependencies: Dependencies[];
+} {
+  if (!("_isOneOf" in field))
+    return createMaybeRepeatedFieldUnwrapExpression(field);
+  const mappedFields = field.fields.map((f) => ({
+    ...createRequiredFieldUnwrapExpression(f, `oneOfValue.${f.name}`),
+    name: f.name,
+  }));
+  const content = `...(() => {
+    const oneOfValue = ${INPUT_VARIABLE}.${field.name};
+    if (!oneOfValue) return {};
+    ${mappedFields
+      .map(
+        (f) =>
+          `if ('${f.name}' in oneOfValue) return { ${f.name}: ${f.content} };`,
+      )
+      .join("\n")}
+    return {};
+  })()`;
+  return {
+    content,
+    dependencies: mappedFields.flatMap((f) => f.dependencies),
+  };
+}
+
 /**
  * Creates an unwrapper function for a protobuf message, which maps a plain object to the corresponding protobuf interface. The function will handle both required and optional fields, as well as repeated fields, and will use the appropriate unwrapper functions for nested messages and enums as needed.
  * @param message - The protobuf message to create the unwrapper function for
@@ -248,7 +277,7 @@ function createMaybeRepeatedFieldUnwrapExpression(field: proto.Field): {
 function createMessageUnwrapperFunctions(message: proto.Type, prefix: string) {
   const functionName = getUnwrapperFunctionName(message.name);
   const fieldResults = getFields(message).map(
-    createMaybeRepeatedFieldUnwrapExpression,
+    createMaybeOneOfFieldUnwrapExpression,
   );
   const contentLines = fieldResults.map((result) => result.content);
   const definitions = `

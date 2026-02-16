@@ -3,6 +3,7 @@ import { createMultilineComment } from "../utils/comments.js";
 import {
   getChildNamespaces,
   getEnums,
+  getFields,
   getMessages,
   isRequiredField,
 } from "../utils/protobuf.js";
@@ -124,14 +125,28 @@ function createMessageInterface(message: proto.Type) {
     interfaceDef += createMultilineComment(message.comment) + "\n";
   }
   interfaceDef += `interface ${message.name} {\n`;
-  for (const field of message.fieldsArray.map((f) => f.resolve())) {
-    const tsType = convertMaybeRepeatedToTsType(field);
-    // NOTE: Repeated fields are considered required. Expect an empty array to be used if there are no values.
-    const required = isRequiredField(field) || field.repeated;
-    if (field.comment) {
-      interfaceDef += createMultilineComment(field.comment, "  ") + "\n";
+  const mergedFields = getFields(message);
+  for (const field of mergedFields) {
+    if ("_isOneOf" in field) {
+      if (field.oneOf?.comment) {
+        interfaceDef +=
+          createMultilineComment(field.oneOf.comment, "  ") + "\n";
+      }
+      const tsType = field.fields
+        .map((t) =>
+          `${createMultilineComment(t.comment, "  ")} {${t.name}:${convertToTypescriptType(t.type)}}`.trim(),
+        )
+        .join("\n    | ");
+      interfaceDef += `  ${field.name}?:\n    | ${tsType};\n`;
+    } else {
+      const tsType = convertMaybeRepeatedToTsType(field);
+      // NOTE: Repeated fields are considered required. Expect an empty array to be used if there are no values.
+      const required = isRequiredField(field) || field.repeated;
+      if (field.comment) {
+        interfaceDef += createMultilineComment(field.comment, "  ") + "\n";
+      }
+      interfaceDef += `  ${field.name}${required ? "" : "?"}: ${tsType};\n`;
     }
-    interfaceDef += `  ${field.name}${required ? "" : "?"}: ${tsType};\n`;
   }
   interfaceDef += `}\n\n`;
   return interfaceDef;

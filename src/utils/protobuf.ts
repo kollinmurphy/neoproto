@@ -9,15 +9,49 @@ export function isRequiredField(field: proto.Field) {
   return (field as unknown as { rule: string })["rule"] === "required";
 }
 
+export interface OneOfField {
+  _isOneOf: true;
+  name: string;
+  fields: proto.Field[];
+  oneOf: proto.OneOf;
+}
+
+export type MaybeOneOfField = proto.Field | OneOfField;
+
 /**
  * Retrieves and sorts the fields of a protobuf message.
  * @param message - The protobuf message type to retrieve fields from.
- * @returns An array of protobuf fields sorted alphabetically by name.
+ * @returns An array of protobuf fields sorted alphabetically by field name, with fields that are part of a "oneof" group grouped together and sorted by their field names as well.
  */
-export function getFields(message: proto.Type): proto.Field[] {
-  return Object.values(message.fields)
-    .map((f) => f.resolve())
-    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+export function getFields(message: proto.Type): MaybeOneOfField[] {
+  const { oneOf, noOneOf } = Object.values(message.fields).reduce(
+    (acc, field) => {
+      if (field.partOf) {
+        if (!acc.oneOf[field.partOf.name]) acc.oneOf[field.partOf.name] = [];
+        acc.oneOf[field.partOf.name]!.push(field);
+      } else {
+        acc.noOneOf.push(field);
+      }
+      return acc;
+    },
+    {
+      noOneOf: [] as proto.Field[],
+      oneOf: {} as Record<string, proto.Field[]>,
+    },
+  );
+  return [
+    ...noOneOf,
+    ...Object.entries(oneOf).map(([name, fields]) => {
+      return {
+        _isOneOf: true,
+        name,
+        fields: fields.sort((a, b) =>
+          a.name.toLowerCase().localeCompare(b.name.toLowerCase()),
+        ),
+        oneOf: fields[0]?.partOf!,
+      } satisfies OneOfField;
+    }),
+  ].sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 }
 
 /**
@@ -66,6 +100,7 @@ export function getChildNamespaces(
 export function hasOptionalField(message: proto.Type): boolean {
   return getFields(message).some(
     (field) =>
+      "_isOneOf" in field ||
       !isRequiredField(field) ||
       (field.resolvedType instanceof proto.Type &&
         hasOptionalField(field.resolvedType)),

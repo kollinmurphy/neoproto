@@ -51,6 +51,9 @@ interface Options {
 
   /** Whether to skip formatting generated files with Prettier. */
   flagNoPrettier?: boolean;
+
+  /** Whether to skip executing generated tests after generation. */
+  flagNoTestExecution?: boolean;
 }
 
 /**
@@ -65,6 +68,7 @@ async function run({
   testDir,
   flagForce,
   flagNoPrettier,
+  flagNoTestExecution,
 }: Options) {
   if (existsSync(outDir)) {
     if (!flagForce) {
@@ -138,7 +142,7 @@ export * from "./wrap.js";
 
   if (!flagNoPrettier) await runPrettier(outDir);
 
-  if (!process.argv.includes("--no-test-execution") && testDir) {
+  if (!flagNoTestExecution && testDir) {
     console.log("\nRunning generated tests...\n");
     try {
       await executeCommand(

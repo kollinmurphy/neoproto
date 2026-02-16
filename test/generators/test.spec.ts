@@ -8,7 +8,6 @@ import {
   TEST_VALUES,
 } from "../../src/generators/test";
 import proto from "protobufjs";
-import { getFields } from "../../src/utils/protobuf";
 
 const dummyMessage = Object.assign(Object.create(proto.Type.prototype), {
   name: "TestMessage",
@@ -30,6 +29,9 @@ const dummyMessage = Object.assign(Object.create(proto.Type.prototype), {
       type: "string",
     }),
   },
+});
+Object.keys(dummyMessage.fields).forEach((field) => {
+  dummyMessage.fields[field].resolve = () => dummyMessage.fields[field]; // Mock the resolve method for testing
 });
 
 describe("test.ts", () => {
@@ -68,7 +70,7 @@ describe("test.ts", () => {
             } as unknown as proto.Field,
             "omit-optional",
           ),
-          TEST_VALUES.array_default,
+          TEST_VALUES.repeated_default,
         ));
       it("should return two instances when behavior is 'all-required'", () =>
         assert.strictEqual(
@@ -225,30 +227,25 @@ describe("test.ts", () => {
     it("should create an instance of a message with all required fields", () =>
       assert.strictEqual(
         createTestInstance(dummyMessage, "omit-optional").replace(/\s/g, ""),
-        `{stringField:${TEST_VALUES.string},intField:${TEST_VALUES.number},}`,
+        `{intField:${TEST_VALUES.number},stringField:${TEST_VALUES.string},}`,
       ));
     it("should include optional fields when required by the behavior", () =>
       assert.strictEqual(
         createTestInstance(dummyMessage, "default-optional").replace(/\s/g, ""),
-        `{stringField:${TEST_VALUES.string},intField:${TEST_VALUES.number},optField:${TEST_VALUES.string_default},}`,
+        `{intField:${TEST_VALUES.number},optField:${TEST_VALUES.string_default},stringField:${TEST_VALUES.string},}`,
       ));
   });
   describe("generateMessageTests", () => {
     it("should generate test code", () => {
-      Object.keys(dummyMessage.fields).forEach((field) => {
-        dummyMessage.fields[field].resolve = () => dummyMessage.fields[field]; // Mock the resolve method for testing
-      });
-      dummyMessage.getFields = () => getFields(dummyMessage);
-      dummyMessage.resolve = () => dummyMessage; // Mock the resolve method for testing
       assert.strictEqual(
         generateMessageTests(dummyMessage),
         `
 describe("TestMessage", () => {
   it("should serialize and deserialize correctly", () => {
     const original: ${dummyMessage.name} = {
-      stringField: ${TEST_VALUES.string},
       intField: ${TEST_VALUES.number},
       optField: ${TEST_VALUES.string},
+      stringField: ${TEST_VALUES.string},
     };
     const serialized = serializeTestMessage(original);
     const deserialized = deserializeTestMessage(serialized);
@@ -256,13 +253,13 @@ describe("TestMessage", () => {
   });
   it("should handle optional fields correctly", () => {
     const original: ${dummyMessage.name} = {
-      stringField: ${TEST_VALUES.string},
       intField: ${TEST_VALUES.number},
+      stringField: ${TEST_VALUES.string},
     };
     const defaulted: ${dummyMessage.name} = {
-      stringField: ${TEST_VALUES.string},
       intField: ${TEST_VALUES.number},
       optField: ${TEST_VALUES.string_default},
+      stringField: ${TEST_VALUES.string},
     };
     const serialized = serializeTestMessage(original);
     const deserialized = deserializeTestMessage(serialized);
@@ -295,17 +292,14 @@ describe("TestMessage", () => {
         messageWithoutOptional.fields[field].resolve = () =>
           messageWithoutOptional.fields[field]; // Mock the resolve method for testing
       });
-      messageWithoutOptional.getFields = () =>
-        getFields(messageWithoutOptional);
-      messageWithoutOptional.resolve = () => messageWithoutOptional; // Mock the resolve method for testing
       assert.strictEqual(
         generateMessageTests(messageWithoutOptional),
         `
 describe("MessageWithoutOptional", () => {
   it("should serialize and deserialize correctly", () => {
     const original: ${messageWithoutOptional.name} = {
-      stringField: ${TEST_VALUES.string},
       intField: ${TEST_VALUES.number},
+      stringField: ${TEST_VALUES.string},
     };
     const serialized = serializeMessageWithoutOptional(original);
     const deserialized = deserializeMessageWithoutOptional(serialized);
@@ -330,8 +324,6 @@ describe("MessageWithoutOptional", () => {
       Object.keys(dummyMessage.fields).forEach((field) => {
         dummyMessage.fields[field].resolve = () => dummyMessage.fields[field]; // Mock the resolve method for testing
       });
-      dummyMessage.getFields = () => getFields(dummyMessage);
-      dummyMessage.resolve = () => dummyMessage; // Mock the resolve method for testing
       const messageTests = generateMessageTests(dummyMessage);
       assert.strictEqual(
         generateNamespaceTests(dummyNamespace, "./relative/path"),

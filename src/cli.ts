@@ -67,12 +67,14 @@ async function main() {
     printUsage();
     process.exit(0);
   }
-  const outDir = getParameter("--out-dir", "-o", { required: true });
-  const protoPath = getParameter("--proto", "-p", { required: true });
-  const testDir = getParameter("--test-dir", "-t", { required: false });
-  const flagForce = getFlag("--force", "-f");
-  const flagNoPrettier = getFlag("--no-prettier");
-  await run({ outDir, protoPath, testDir, flagForce, flagNoPrettier });
+  await run({
+    outDir: getParameter("--out-dir", "-o", { required: true }),
+    protoPath: getParameter("--proto", "-p", { required: true }),
+    testDir: getParameter("--test-dir", "-t", { required: false }),
+    flagForce: getFlag("--force", "-f"),
+    flagNoPrettier: getFlag("--no-prettier"),
+    flagNoTestExecution: getFlag("--no-test-execution"),
+  });
 }
 
 main()

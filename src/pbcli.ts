@@ -3,6 +3,24 @@ import proto from "protobufjs";
 import pbcli from "protobufjs-cli";
 
 /**
+ * Helper to wrap protobufjs-cli main functions in a Promise
+ * @param tool - The protobufjs-cli tool to run (e.g. pbjs or pbts).
+ * @param args - The command line arguments to pass to the tool
+ * @return A promise that resolves when the tool finishes execution, or rejects if an error occurs.
+ * @throws An error if the tool execution fails.
+ * @example
+ * await runCli(pbcli.pbjs, ["--target", "static-module", "--wrap", "es6", "--out", "output.js", "input.proto"]);
+ */
+function runCli(tool: any, args: string[]): Promise<number> {
+  return new Promise((resolve, reject) => {
+    tool.main(args, (err: Error | null, _?: string) => {
+      if (err) return reject(err);
+      resolve(0);
+    });
+  });
+}
+
+/**
  * Runs the protobufjs CLI to generate JSON, JS, and TS files from a .proto file.
  * @param protoPath - The path to the .proto file to compile.
  * @param outDir - The directory to output the generated files to.
@@ -26,24 +44,24 @@ export async function runProtobufjsCli(protoPath: string, outDir: string) {
   );
   console.log(`Wrote JSON to ${outDir}/${namespaceStr}.json`);
 
-  pbcli.pbjs.main([
+  await runCli(pbcli.pbjs, [
     "--target",
     "static-module",
     "--wrap",
     "es6",
-    "--alt-comment", // NOTE: pbjs fails to find comments without the alternate comment mode enabled
+    "--alt-comment",
     "--out",
     `${outDir}/${namespaceStr}.js`,
     protoPath,
   ]);
   console.log(`Wrote JS module to ${outDir}/${namespaceStr}.js`);
 
-  pbcli.pbts.main([
+  await runCli(pbcli.pbts, [
     "--out",
     `${outDir}/${namespaceStr}.d.ts`,
     `${outDir}/${namespaceStr}.js`,
   ]);
   console.log(`Wrote TS definitions to ${outDir}/${namespaceStr}.d.ts`);
 
-  return { namespace, root };
+  return { namespace: namespace.resolveAll() };
 }

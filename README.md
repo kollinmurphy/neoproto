@@ -9,7 +9,7 @@
 
 This is a strongly opinionated library that makes certain assumptions about how protobuf messages are defined and used. It is not a general-purpose library. You may find it helpful, or you may find that it does not fit your use case. In either case, please feel free to fork the library and modify it to suit your needs.
 
-This project supports only a subset of the `proto2` syntax (messages and enums). `proto3` is not supported.
+This project supports only a subset of the `proto2` syntax (messages and enums). `proto3` is not intended to be supported, although it may have some level of compatibility.
 
 As defined in the [protobuf spec version 2](https://protobuf.dev/programming-guides/proto2/#default), the default values of fields are as follows:
 

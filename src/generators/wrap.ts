@@ -6,6 +6,7 @@ import {
   getFields,
   getMessages,
   isRequiredField,
+  MaybeOneOfField,
 } from "../utils/protobuf.js";
 
 /**
@@ -192,16 +193,15 @@ function createMaybeOptionalFieldWrapExpression(field: proto.Field): {
   content: string;
   dependencies: Dependency[];
 } {
-  const fieldName = field.name;
   const baseExpression = createRequiredFieldWrapExpression(
     field,
-    `input.${fieldName}`,
+    `input.${field.name}`,
   );
   const required = isRequiredField(field);
   return {
     content: required
-      ? `${fieldName}: ${baseExpression.content}`
-      : `...(isNonNullable(input.${fieldName}) ? { ${fieldName}: ${baseExpression.content} } : {})`,
+      ? `${field.name}: ${baseExpression.content}`
+      : `...(isNonNullable(input.${field.name}) ? { ${field.name}: ${baseExpression.content} } : {})`,
     dependencies: required
       ? baseExpression.dependencies
       : [...baseExpression.dependencies, "isNonNullable"],
@@ -219,13 +219,12 @@ function createMaybeRepeatedFieldWrapExpression(field: proto.Field): {
   dependencies: Dependency[];
 } {
   if (!field.repeated) return createMaybeOptionalFieldWrapExpression(field);
-  const fieldName = field.name;
   const baseExpression = createRequiredFieldWrapExpression(field, MAP_VARIABLE);
   const needsMap = baseExpression.content !== MAP_VARIABLE;
   return {
     content: needsMap
-      ? `${fieldName}: (input.${fieldName} ?? []).map((${MAP_VARIABLE}) => ${baseExpression.content})`
-      : `${fieldName}: input.${fieldName} ?? []`,
+      ? `${field.name}: (input.${field.name} ?? []).map((${MAP_VARIABLE}) => ${baseExpression.content})`
+      : `${field.name}: input.${field.name} ?? []`,
     dependencies: baseExpression.dependencies,
   };
 }
@@ -246,7 +245,7 @@ function createMessageWrapperFunctions(
   dependencies: Dependency[];
 } {
   const functionName = getWrapperFunctionName(message.name);
-  const fields = getFields(message).map(createMaybeRepeatedFieldWrapExpression);
+  const fields = getFields(message).map(createMaybeOneOfFieldWrapExpression);
   const definitions = `
 /**
  * Maps a ${message.name} protobuf message to a plain object.
@@ -267,6 +266,36 @@ function ${functionName}(${INPUT_VARIABLE}: ${namespace}.I${message.name}): ${me
     dependencies: Array.from(
       new Set(fields.flatMap((field) => field.dependencies)),
     ),
+  };
+}
+
+function createMaybeOneOfFieldWrapExpression(field: MaybeOneOfField): {
+  content: string;
+  dependencies: Dependency[];
+} {
+  if (!("_isOneOf" in field))
+    return createMaybeRepeatedFieldWrapExpression(field);
+  const mappedFields = field.fields.map((f) => ({
+    ...createRequiredFieldWrapExpression(f, `${INPUT_VARIABLE}.${f.name}`),
+    name: f.name,
+  }));
+  const content = `...(() => {
+    ${mappedFields
+      .map(
+        (f) => `  if (isNonNullable(${INPUT_VARIABLE}.${f.name})) {
+        const partial: Pick<${field.oneOf.parent?.name}, "${field.name}"> = { ${field.name}: { ${f.name}: ${f.content} } };
+        return partial;
+      };`,
+      )
+      .join("\n    ")}
+    return {};
+    })()`;
+  return {
+    content,
+    dependencies: [
+      "isNonNullable",
+      ...mappedFields.flatMap((f) => f.dependencies),
+    ],
   };
 }
 

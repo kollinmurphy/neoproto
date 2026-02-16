@@ -1,8 +1,10 @@
 import proto from "protobufjs";
 import {
+  getFields,
   getMessages,
   hasOptionalField,
   isRequiredField,
+  MaybeOneOfField,
 } from "../utils/protobuf.js";
 import { getMessageId } from "../utils/associations.js";
 import {
@@ -31,7 +33,7 @@ const TEST_VALUES = Object.freeze({
   string_default: '""',
   number: "123",
   number_default: "0",
-  bigint: "900719925474099111111111nn",
+  bigint: 'BigInt("900719925474099111111111")',
   bigint_default: "0n",
   boolean: "true",
   boolean_default: "false",
@@ -114,14 +116,34 @@ function createTestInstance(
   optionalBehavior: OptionalBehavior,
 ): string {
   return `{
-${message.fieldsArray
+${getFields(message)
   .map((field) => {
-    const value = createTestFieldValue(field, optionalBehavior);
+    const value = createMaybeOneOfTestFieldValue(field, optionalBehavior);
     return value ? `      ${field.name}: ${value},` : null;
   })
   .filter(Boolean)
   .join("\n")}
     }`;
+}
+
+function createMaybeOneOfTestFieldValue(
+  field: MaybeOneOfField,
+  optionalBehavior: OptionalBehavior,
+): string | null {
+  if (!("_isOneOf" in field))
+    return createTestFieldValue(field, optionalBehavior);
+
+  if (
+    optionalBehavior === "omit-optional" ||
+    optionalBehavior === "default-optional"
+  )
+    return null; // all oneof fields are optional, so omit them if not requiring all fields
+
+  const middleField = field.fields[Math.floor(field.fields.length / 2)];
+  if (!middleField) return null;
+  const value = createTestFieldValue(middleField, optionalBehavior);
+  if (!value) return null;
+  return `{ ${middleField.name}: ${value} }`;
 }
 
 /**

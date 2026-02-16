@@ -5,9 +5,12 @@
  * @returns A formatted JSDoc comment block as a string, with appropriate indentation and line breaks based on the input comment.
  */
 export function createMultilineComment(
-  comment: string,
+  comment: string | null | undefined,
   indentation: string = "",
 ): string {
+  if (!comment) {
+    return "";
+  }
   const commentLines = comment.split("\n").map((line) => line.trim());
   if (commentLines.length === 1) {
     return `${indentation}/** ${commentLines[0]} */`;
