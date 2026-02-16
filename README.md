@@ -5,6 +5,34 @@
 > [!WARNING]
 > This tool is in early development and is not yet ready for production use. It may contain bugs and may not support all features of protobuf. Use at your own risk.
 
+### Features
+
+All `neoproto` needs is a `.proto` file. It does all the work from there by parsing the file using [protobufjs](https://www.npmjs.com/package/protobufjs-cli) to generate an intermediate representation of the protobuf schema, and then converts that representation into a usable TypeScript API.
+
+```mermaid
+graph TD
+    input(.proto file) -- protobufjs --> ir(JS/TS intermediate representation)
+    ir --> neo(neoproto engine)
+    neo --> H(Documentation)
+    neo --> D(Type definitions)
+    neo --> E(Serialization / deserialization functions)
+    neo --> G(Test cases)
+```
+
+### Usage
+
+`neoproto` is designed to be used as a command-line tool. Install it as a dev dependency in your project:
+
+```bash
+npm install --save-dev neoproto
+```
+
+Then, you can run it from the command line:
+
+```bash
+npx neoproto -p path/to/your/file.proto -o path/to/output/directory -t path/to/test/directory
+```
+
 ### Limitations
 
 This is a strongly opinionated library that makes certain assumptions about how protobuf messages are defined and used. It is not a general-purpose library. You may find it helpful, or you may find that it does not fit your use case. In either case, please feel free to fork the library and modify it to suit your needs.
