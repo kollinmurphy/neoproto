@@ -1,4 +1,7 @@
+.github
+.nvmrc
 example/
 src/
 test/
 tsconfig.json
+tsconfig.prod.json

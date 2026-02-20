@@ -2,6 +2,8 @@ const RED = "\x1b[31m";
 const YELLOW = "\x1b[33m";
 const RESET = "\x1b[0m";
 
+let hasLoggedError = false;
+
 /**
  * Logs an error message to the console in red text and sets the process exit code to 1 to indicate an error occurred.
  * @param message - The error message to log to the console.
@@ -9,7 +11,7 @@ const RESET = "\x1b[0m";
  */
 export function logError(message: string, prefix = "ERROR: ") {
   console.error(`${RED}${prefix}${message}${RESET}`);
-  process.exitCode = 1;
+  hasLoggedError = true;
 }
 
 /**
@@ -19,4 +21,16 @@ export function logError(message: string, prefix = "ERROR: ") {
  */
 export function logWarning(message: string, prefix = "WARNING: ") {
   console.warn(`${YELLOW}${prefix}${message}${RESET}`);
+}
+
+/**
+ * Retrieves the current state of whether an error has been logged using the logError function.
+ * @returns A boolean value indicating whether an error has been logged (true) or not (false).
+ */
+export function getHasLoggedError() {
+  return hasLoggedError;
+}
+
+export function clearErrorState() {
+  hasLoggedError = false;
 }

@@ -67,25 +67,29 @@ async function main() {
     printUsage();
     process.exit(0);
   }
-  await run({
-    outDir: getParameter("--out-dir", "-o", { required: true }),
-    protoPath: getParameter("--proto", "-p", { required: true }),
-    testDir: getParameter("--test-dir", "-t", { required: false }),
-    flagForce: getFlag("--force", "-f"),
-    flagNoPrettier: getFlag("--no-prettier"),
-    flagNoTestExecution: getFlag("--no-test-execution"),
-  });
-}
-
-main()
-  .then(() => {
-    if (!process.exitCode) {
-      console.log("\nAll tasks completed successfully!\n");
-    } else {
+  try {
+    const { error } = await run({
+      outDir: getParameter("--out-dir", "-o", { required: true }),
+      protoPath: getParameter("--proto", "-p", { required: true }),
+      testDir: getParameter("--test-dir", "-t", { required: false }),
+      flagForce: getFlag("--force", "-f"),
+      flagNoPrettier: getFlag("--no-prettier"),
+      flagNoTestExecution: getFlag("--no-test-execution"),
+    });
+    if (error) {
       logError(
         "One or more tasks completed with errors. Please check the logs above for details.",
-        "",
       );
+      process.exit(1);
+    } else {
+      console.log("\nAll tasks completed successfully!\n");
     }
-  })
-  .catch((err) => console.error("Error:", err));
+  } catch (err) {
+    logError(
+      `An unexpected error occurred: ${err instanceof Error ? err.stack : String(err)}`,
+    );
+    process.exit(1);
+  }
+}
+
+main();
