@@ -40,14 +40,29 @@ function getExpectedResponseNames(requestName: string): string[] {
   return [`${baseName}Response`, `${baseName}Res`, `${baseName}Rsp`];
 }
 
+function isResponseMessage(message: proto.Type): boolean {
+  return (
+    message.name.endsWith("Response") ||
+    message.name.endsWith("Res") ||
+    message.name.endsWith("Rsp")
+  );
+}
+
 /**
  * Extracts the MessageId from a protobuf message's comment if it follows the format "MessageId: <number>".
  * @param message - The protobuf message type from which to extract the MessageId.
  * @returns The extracted MessageId as a number if found, or null if not found or if the format is incorrect.
  */
 function getMessageId(message: proto.Type): number | null {
-  const match = (message.comment || "").match(/MessageId:?\s+(\d+)/i);
-  return match ? parseInt(match[1] || "-1", 10) : null;
+  const match = (message.comment || "").match(/MessageId:?\s*(\d+)/i);
+  return match ? parseInt(match[1] || "0", 10) : null;
 }
 
-export { associateMessages, getMessageId };
+function isMessage(message: proto.Type): boolean {
+  const hasId = Boolean(getMessageId(message));
+  const isReq = isRequestMessage(message);
+  const isRes = isResponseMessage(message);
+  return hasId || isReq || isRes;
+}
+
+export { associateMessages, getMessageId, isMessage };

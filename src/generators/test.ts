@@ -6,7 +6,7 @@ import {
   isRequiredField,
   MaybeOneOfField,
 } from "../utils/protobuf.js";
-import { getMessageId } from "../utils/associations.js";
+import { isMessage } from "../utils/associations.js";
 import {
   getDeserializerFunctionName,
   getSerializerFunctionName,
@@ -52,9 +52,7 @@ function generateNamespaceTests(
   namespace: proto.Namespace,
   relativePath: string,
 ) {
-  const messages = getMessages(namespace).filter((msg) =>
-    Boolean(getMessageId(msg)),
-  );
+  const messages = getMessages(namespace).filter(isMessage);
 
   return `
 import { describe, it } from 'node:test';
