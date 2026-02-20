@@ -8,8 +8,7 @@ import {
   getSerializerFunctionName,
 } from "./serialization.js";
 import { getMessages } from "../utils/protobuf.js";
-import { getMessageId } from "../utils/associations.js";
-import { logError } from "../utils/logger.js";
+import { getMessageId, isMessage } from "../utils/associations.js";
 
 /**
  * Generates wrapper functions for all messages and enums in a protobuf namespace, including nested namespaces, and returns the content of the wrapper file as a string.
@@ -49,16 +48,6 @@ function createNamespaceTraits(
   request: ${requestTraitName},
   response: ${responseTraitName},
 };\n`;
-    if (!messageTraits.includes(requestTraitName)) {
-      logError(
-        `${request.name} is missing a message ID but is detected as a request message. Please add a 'MessageId: ###' comment to it.`,
-      );
-    }
-    if (!messageTraits.includes(responseTraitName)) {
-      logError(
-        `${response.name} is missing a message ID but is detected as a response message. Please add a 'MessageId: ###' comment to it.`,
-      );
-    }
     messageTraits.push(pairTraitsName);
   }
 
@@ -99,17 +88,17 @@ function parseNamespace(namespace: string) {
  * @returns An object containing the TypeScript definition for the traits object, the name of the traits object, and an array of imports required for the serializer and deserializer functions. If the message is missing a message ID, it returns null.
  */
 function createMessageTraits(message: proto.Type) {
-  const id = getMessageId(message);
-  if (!id) {
+  if (!isMessage(message)) {
     return null;
   }
+  const id = getMessageId(message);
   const traitName = getTraitName(message.name);
   const serialize = getSerializerFunctionName(message.name);
   const deserialize = getDeserializerFunctionName(message.name);
+  const idLine = id ? `\n  id: ${id},` : "";
   const definition = `
 const ${traitName} = {
-  deserialize: ${deserialize},
-  id: ${id},
+  deserialize: ${deserialize},${idLine}
   name: "${message.name}",
   serialize: ${serialize},
 };\n`;

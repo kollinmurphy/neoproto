@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { describe, it } from "node:test";
+import { beforeEach, describe, it } from "node:test";
 import {
   createTestFieldValue,
   createTestInstance,
@@ -8,6 +8,7 @@ import {
   TEST_VALUES,
 } from "../../src/generators/test";
 import proto from "protobufjs";
+import { clearErrorState, getHasLoggedError } from "../../src/utils/logger";
 
 const dummyMessage = Object.assign(Object.create(proto.Type.prototype), {
   name: "TestMessage",
@@ -35,6 +36,9 @@ Object.keys(dummyMessage.fields).forEach((field) => {
 });
 
 describe("test.ts", () => {
+  beforeEach(() => {
+    clearErrorState();
+  });
   describe("createTestFieldValue", () => {
     it("should return null for optional fields when behavior is 'omit-optional'", () =>
       assert.strictEqual(
@@ -207,7 +211,6 @@ describe("test.ts", () => {
       }
     });
     it("should return 'UNKNOWN' for unsupported field types", () => {
-      const originalExitCode = process.exitCode;
       assert.strictEqual(
         createTestFieldValue(
           {
@@ -219,8 +222,7 @@ describe("test.ts", () => {
         ),
         "UNKNOWN",
       );
-      assert.strictEqual(process.exitCode, 1);
-      process.exitCode = originalExitCode; // Reset exit code to avoid affecting other tests
+      assert.strictEqual(getHasLoggedError(), true);
     });
   });
   describe("createTestInstance", () => {

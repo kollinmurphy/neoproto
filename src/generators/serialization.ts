@@ -3,7 +3,7 @@ import { capitalizeFirstLetter } from "../utils/string-manipulation.js";
 import { getWrapperFunctionName } from "./wrap.js";
 import { getUnwrapperFunctionName } from "./unwrap.js";
 import { getMessages } from "../utils/protobuf.js";
-import { getMessageId } from "../utils/associations.js";
+import { isMessage } from "../utils/associations.js";
 import { logError } from "../utils/logger.js";
 
 /**
@@ -19,7 +19,7 @@ function createNamespaceSerializers(namespace: proto.Namespace): string {
   const unwrapperImports: string[] = [];
   const messages = getMessages(namespace);
   for (const message of messages) {
-    if (!getMessageId(message)) continue;
+    if (!isMessage(message)) continue;
     const {
       definitions: messageDefinitions,
       exports: messageExports,

@@ -8,7 +8,11 @@ import { createRootNamespaceWrappers } from "./generators/wrap.js";
 import { createRootNamespaceUnwrappers } from "./generators/unwrap.js";
 import { associateMessages } from "./utils/associations.js";
 import { getMessages } from "./utils/protobuf.js";
-import { logError } from "./utils/logger.js";
+import {
+  clearErrorState,
+  getHasLoggedError,
+  logError,
+} from "./utils/logger.js";
 import prettier from "prettier";
 import { generateNamespaceTests } from "./generators/test.js";
 import { executeCommand, getRelativePath } from "./utils/system.js";
@@ -70,12 +74,14 @@ async function run({
   flagNoPrettier,
   flagNoTestExecution,
 }: Options) {
+  clearErrorState();
+
   if (existsSync(outDir)) {
     if (!flagForce) {
       logError(
         `Output directory ${outDir} already exists. Use --force or -f to overwrite.`,
       );
-      process.exit(1);
+      return { error: true };
     }
     await rm(outDir, { force: true, recursive: true });
   }
@@ -86,7 +92,7 @@ async function run({
       logError(
         `Test directory ${testDir} already exists. Use --force or -f to overwrite.`,
       );
-      process.exit(1);
+      return { error: true };
     }
     await rm(testDir, { force: true, recursive: true });
   }
@@ -154,6 +160,10 @@ export * from "./wrap.js";
       logError("Generated unit tests failed.", "");
     }
   }
+
+  const error = getHasLoggedError();
+  clearErrorState();
+  return { error };
 }
 
 export { run };

@@ -174,7 +174,7 @@ function createRequiredFieldUnwrapExpression(
     case "sint64":
     case "uint64":
       return {
-        content: `typeof ${name} === 'number' ? ${name} : long.fromBigInt(${name})`,
+        content: `long.fromString(${name}.toString())`,
         dependencies: ["long"],
       };
     default:
