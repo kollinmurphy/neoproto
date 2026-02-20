@@ -2,22 +2,13 @@
 
 `neoproto` is a code generation tool that focuses on improving the developer experience of working with protobuf messages in TypeScript. It generates usable type definitions, serialization and deserialization functions, and test cases for protobuf messages defined in `.proto` files. The goal is to produce an idiomatic TypeScript API that abstracts away the idiosyncrasies of protobuf as much as possible.
 
-> [!WARNING]
-> This tool is in early development and is not yet ready for production use. It may contain bugs and may not support all features of protobuf. Use at your own risk.
+> This tool is in early development. It may contain bugs and may not support all features of protobuf. Use at your own risk.
 
 ### Features
 
 All `neoproto` needs is a `.proto` file. It does all the work from there by parsing the file using [protobufjs](https://www.npmjs.com/package/protobufjs-cli) to generate an intermediate representation of the protobuf schema, and then converts that representation into a usable TypeScript API.
 
-```mermaid
-graph TD
-    input(.proto file) -- protobufjs --> ir(JS/TS intermediate representation)
-    ir --> neo(neoproto engine)
-    neo --> H(Documentation)
-    neo --> D(Type definitions)
-    neo --> E(Serialization / deserialization functions)
-    neo --> G(Test cases)
-```
+![neoproto diagram](./doc/diagram.png)
 
 ### Usage
 
