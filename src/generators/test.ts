@@ -11,6 +11,9 @@ import {
 } from "./serialization.js";
 import { logError } from "../utils/logger.js";
 
+// The maximum integer value that can be represented by the Long library, which uses a two's complement 64-bit representation.
+const MAX_64_BIT_INT = 9_223_372_036_854_775_807n;
+
 /**
  * Defines the behavior for handling optional fields when creating test
  * instances for protobuf messages. The "all-required" behavior includes all
@@ -31,7 +34,7 @@ const TEST_VALUES = Object.freeze({
   string_default: '""',
   number: "123",
   number_default: "0",
-  bigint: 'BigInt("900719925474099111111111")',
+  bigint: `BigInt("${MAX_64_BIT_INT}")`,
   bigint_default: "0n",
   boolean: "true",
   boolean_default: "false",
