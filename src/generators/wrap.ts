@@ -23,32 +23,35 @@ const MAP_VARIABLE = "item";
  * @returns A string containing the content of the wrapper file with all the generated wrapper functions for the protobuf namespace
  */
 function createRootNamespaceWrappers(namespace: proto.Namespace): string {
+  const rootNamespaceName = namespace.fullName.split(".").filter(Boolean)[0];
+  const namespaceAccess = namespace.fullName.split(".").filter(Boolean).join(".");
+
   const {
     content: definitions,
     exports,
     typeImports,
     dependencies,
-  } = createNestedNamespaceWrappers(namespace, namespace.name);
+  } = createNestedNamespaceWrappers(namespace, namespaceAccess);
 
   const importLines = `import type { ${[...new Set(typeImports)].sort().join(", ")} } from "./types.js";
-import { ${namespace.name} } from "./protobuf/${namespace.name}.js";`;
+import { ${rootNamespaceName} } from "./protobuf/${rootNamespaceName}.js";`;
 
   const functionDeclarations = [
     ...(dependencies.has("isNonNullable")
       ? [
-          `function isNonNullable<T>(value: T): value is NonNullable<T> {
+        `function isNonNullable<T>(value: T): value is NonNullable<T> {
   return value !== null && value !== undefined;
 }
 `,
-        ]
+      ]
       : []),
     ...(dependencies.has("assertUnreachable")
       ? [
-          `function assertUnreachable(x: never): never {
+        `function assertUnreachable(x: never): never {
   throw new Error(\`Unexpected value: \${x}\`);
 }
 `,
-        ]
+      ]
       : []),
   ].join("\n");
 

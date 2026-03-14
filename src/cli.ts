@@ -19,6 +19,8 @@ Flags:
   ${"--force, -f".padEnd(20)}Overwrite the output directory if it already exists. (Use with caution! This will delete all existing files in the output directory.)
   ${"--no-prettier".padEnd(20)}Skip formatting the generated files with Prettier.
   ${"--no-test-execution".padEnd(20)}Skip executing the generated tests after creation. This is only relevant if a test directory is specified.
+  ${"--verbose, -v".padEnd(20)}Enable verbose logging for generated code. This is intended to debug runtime issues in the generated code.
+  ${"--help, -h".padEnd(20)}Show this help message and exit.
 `);
 }
 
@@ -63,7 +65,7 @@ function getParameter(
  * If the --help or -h flag is provided, the function will print usage instructions and exit.
  */
 async function main() {
-  if (process.argv.length <= 2 || getFlag("--help") || getFlag("-h")) {
+  if (process.argv.length <= 2 || getFlag("--help", "-h")) {
     printUsage();
     process.exit(0);
   }
@@ -75,6 +77,7 @@ async function main() {
       flagForce: getFlag("--force", "-f"),
       flagNoPrettier: getFlag("--no-prettier"),
       flagNoTestExecution: getFlag("--no-test-execution"),
+      flagVerbose: getFlag("--verbose", "-v"),
     });
     if (error) {
       logError(

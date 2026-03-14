@@ -27,11 +27,11 @@ function createNamespaceDocumentation(
   }): string {
   const messageDocs = topLevelMessages.map((m) => createMessageDocumentation(m, associations)).join("\n\n").trim();
   const messageToc = topLevelMessages.map((msg) => `- [${msg.name}](#${msg.name.toLowerCase()})`);
-  const namespaceComment = getNamespaceComment(protoSource);
+  const namespaceComment = getNamespaceComment(protoSource)?.trim() || NO_DOCUMENTATION;
 
   return `# ${apiName} v${apiVersion}
 
-${namespaceComment || NO_DOCUMENTATION}
+${namespaceComment}
 
 ## Messages
 

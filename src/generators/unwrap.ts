@@ -21,38 +21,48 @@ type Dependencies = "long" | "isNonNullish" | "assertUnreachable";
 /**
  * Generates unwrapper functions for all messages and enums in a protobuf namespace, including nested namespaces, and returns the content of the unwrapper file as a string.
  * @param namespace - The protobuf namespace to create unwrapper functions for
+ * @param generateVerbose - Whether to generate verbose logging for the unwrapper functions
  * @returns A string containing the content of the unwrapper file with all the generated unwrapper functions for the protobuf namespace
  */
-function createRootNamespaceUnwrappers(namespace: proto.Namespace): string {
+function createRootNamespaceUnwrappers({
+  namespace,
+  generateVerbose,
+}: {
+  namespace: proto.Namespace
+  generateVerbose?: boolean | undefined;
+}): string {
+  const rootNamespaceName = namespace.fullName.split(".").filter(Boolean)[0];
+  const namespaceAccess = namespace.fullName.split(".").filter(Boolean).join(".");
+
   const {
     content: definitions,
     exports,
     typeImports,
     dependencies,
-  } = createNestedNamespaceUnwrappers(namespace, namespace.name);
+  } = createNestedNamespaceUnwrappers({ namespace, prefix: namespaceAccess, generateVerbose: generateVerbose ?? false });
 
   const importLines = [
     `import type { ${[...new Set(typeImports)].sort().join(", ")} } from "./types.js";`,
     ...(dependencies.has("long") ? ["import long from 'long';"] : []),
-    `import { ${namespace.name} } from "./protobuf/${namespace.name}.js";`,
+    `import { ${rootNamespaceName} } from "./protobuf/${rootNamespaceName}.js";`,
   ].join("\n");
 
   const functionDeclarations = [
     ...(dependencies.has("isNonNullish")
       ? [
-          `function isNonNullish<T>(value: T): value is NonNullable<T> {
+        `function isNonNullish<T>(value: T): value is NonNullable<T> {
   return value !== null && value !== undefined;
 }
 `,
-        ]
+      ]
       : []),
     ...(dependencies.has("assertUnreachable")
       ? [
-          `function assertUnreachable(x: never): never {
+        `function assertUnreachable(x: never): never {
   throw new Error(\`Unexpected value: \${x}\`);
 }
 `,
-        ]
+      ]
       : []),
   ].join("\n");
 
@@ -70,11 +80,15 @@ export {
  * Recursively creates unwrapper functions for all messages and enums in a protobuf namespace, including nested namespaces.
  * @param namespace - The protobuf namespace to create unwrapper functions for
  * @param prefix - The prefix to use for the unwrapper function names, which should correspond to the namespace hierarchy (e.g., "MyNamespace.SubNamespace")
+ * @param generateVerbose - Whether to generate verbose logging for the unwrapper functions
  * @returns An object containing the content, exports, imports, and dependencies for the unwrapper functions in the namespace
  */
 function createNestedNamespaceUnwrappers(
-  namespace: proto.Namespace,
-  prefix: string,
+  { namespace, prefix, generateVerbose }: {
+    namespace: proto.Namespace;
+    prefix: string;
+    generateVerbose: boolean;
+  },
 ): {
   content: string;
   exports: string[];
@@ -93,7 +107,7 @@ function createNestedNamespaceUnwrappers(
       exports: mapperExports,
       typeImports: mapperImports,
       dependencies: mapperDependencies,
-    } = createMessageUnwrapperFunctions(message, prefix);
+    } = createMessageUnwrapperFunctions({ message, prefix, generateVerbose });
     definitions += mapperDefinitions;
     exports.push(...mapperExports);
     typeImports.push(...mapperImports);
@@ -123,8 +137,7 @@ function createNestedNamespaceUnwrappers(
       typeImports: childImports,
       dependencies: childDependencies,
     } = createNestedNamespaceUnwrappers(
-      childNamespace,
-      `${prefix}.${childNamespace.name}`,
+      { namespace: childNamespace, prefix: `${prefix}.${childNamespace.name}`, generateVerbose },
     );
     definitions += childContent;
     exports.push(...childExports);
@@ -271,9 +284,10 @@ function createMaybeOneOfFieldUnwrapExpression(field: MaybeOneOfField): {
  * Creates an unwrapper function for a protobuf message, which maps a plain object to the corresponding protobuf interface. The function will handle both required and optional fields, as well as repeated fields, and will use the appropriate unwrapper functions for nested messages and enums as needed.
  * @param message - The protobuf message to create the unwrapper function for
  * @param prefix - The prefix to use for the unwrapper function name, which should correspond to the namespace hierarchy (e.g., "MyNamespace.SubNamespace")
+ * @param generateVerbose - Whether to generate verbose logging for the unwrapper function
  * @returns An object containing the content, exports, imports, and dependencies for the unwrapper function for the message
  */
-function createMessageUnwrapperFunctions(message: proto.Type, prefix: string) {
+function createMessageUnwrapperFunctions({ message, prefix, generateVerbose }: { message: proto.Type; prefix: string; generateVerbose?: boolean }) {
   const functionName = getUnwrapperFunctionName(message.name);
   const fieldResults = getFields(message).map(
     createMaybeOneOfFieldUnwrapExpression,
@@ -288,7 +302,9 @@ function createMessageUnwrapperFunctions(message: proto.Type, prefix: string) {
 function ${functionName}(${INPUT_VARIABLE}: ${message.name}): ${prefix}.I${message.name} {
   const proto: ${prefix}.I${message.name} = {
     ${contentLines.join(",\n    ")}
-  };
+  };${generateVerbose ? `
+  console.log("Unwrapped ${prefix}.${message.name}:", proto);
+  ` : ""}
   return proto;
 }
 `;
@@ -319,11 +335,11 @@ function createEnumUnwrapperFunction(enumType: proto.Enum, prefix: string) {
 function ${functionName}(${INPUT_VARIABLE}: ${enumType.name}): number {
   switch (${INPUT_VARIABLE}) {
 ${Object.entries(enumType.values)
-  .map(
-    ([key]) => `    case '${key}':
+      .map(
+        ([key]) => `    case '${key}':
       return ${prefix}.${enumType.name}.${key};`,
-  )
-  .join("\n")}
+      )
+      .join("\n")}
     default:
       return assertUnreachable(${INPUT_VARIABLE});
   }

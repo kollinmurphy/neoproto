@@ -23,6 +23,7 @@ describe("smoke test", () => {
       protoPath: example,
       testDir: join(outDir, "tests"),
       flagNoTestExecution: true,
+      flagVerbose: true,
     });
     assert.strictEqual(error, false);
   });

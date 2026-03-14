@@ -1,6 +1,7 @@
 // neoproto currently only supports proto2 syntax
 syntax = "proto2";
 
+// This is an example protobuf file to demonstrate the capabilities of the library. It includes various features such as nested messages, enums, oneof fields, and comments for documentation purposes.
 package MyApi.V1;
 
 /**
@@ -13,10 +14,13 @@ message MyNestedMessage {
 
 /**
  * Request message for the MyMessage service.
+ * MessageId: 1
+ * client to provider
  */
 message MyMessageReq {
   optional string value = 1;
   optional int64 some_long = 2;
+  // This field needs some additional explanation.
   optional MyNestedMessage nested = 3;
   optional bool some_thing = 4;
   
@@ -26,6 +30,8 @@ message MyMessageReq {
 
 /**
  * Response message containing the result of a MyMessageReq.
+ * MessageID 2
+ * Directionality: provider-to-client
  */
 message MyMessageRes {
   optional string value = 1;
@@ -39,7 +45,9 @@ message MyMessageRes {
 }
 
 /**
- * Client-to-provider notification sent when a specific event occurs.
+ * An important notification of some change.
+ * MessageID: 3
+ * Directionality: bidirectional
  */
 message SomethingElseNotification {
   optional string name = 1;
