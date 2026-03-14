@@ -2,31 +2,32 @@ import proto from "protobufjs";
 import { capitalizeFirstLetter } from "../utils/string-manipulation.js";
 import { getWrapperFunctionName } from "./wrap.js";
 import { getUnwrapperFunctionName } from "./unwrap.js";
-import { getMessages } from "../utils/protobuf.js";
-import { isMessage } from "../utils/associations.js";
 import { logError } from "../utils/logger.js";
 
 /**
  * Generates wrapper functions for all messages and enums in a protobuf namespace, including nested namespaces, and returns the content of the wrapper file as a string.
- * @param namespace - The protobuf namespace to create wrapper functions for
+ * @param namespaceName - The name of the protobuf namespace to generate wrapper functions for, which is used to reference the correct message types in the protobufjs encoding and decoding functions
+ * @param topLevelMessages - An array of protobuf message types that are defined at the top level of the protobuf namespace, which are used to generate the serializer and deserializer function definitions for each message type
  * @returns A string containing the content of the wrapper file with all the generated wrapper functions for the protobuf namespace
  */
-function createNamespaceSerializers(namespace: proto.Namespace): string {
+function createNamespaceSerializers(namespaceName: string, topLevelMessages: proto.Type[]): string {
   let definitions = "";
   const exports: string[] = [];
   const typeImports: string[] = [];
   const wrapperImports: string[] = [];
   const unwrapperImports: string[] = [];
-  const messages = getMessages(namespace);
-  for (const message of messages) {
-    if (!isMessage(message)) continue;
+
+  const rootNamespaceName = namespaceName.split(".").filter(Boolean)[0];
+  const namespaceAccess = namespaceName.split(".").filter(Boolean).join(".");
+
+  for (const message of topLevelMessages) {
     const {
       definitions: messageDefinitions,
       exports: messageExports,
       typeImports: messageImports,
       wrapperImports: messageWrapperImports,
       unwrapperImports: messageUnwrapperImports,
-    } = createMessageSerializers(namespace.name, message);
+    } = createMessageSerializers(namespaceAccess, message);
     definitions += messageDefinitions;
     exports.push(...messageExports);
     typeImports.push(...messageImports);
@@ -36,14 +37,15 @@ function createNamespaceSerializers(namespace: proto.Namespace): string {
 
   if (!definitions)
     logError(
-      `No messages with a valid message ID found in namespace ${namespace.name}.`,
+      `No top-level messages found in namespace ${namespaceName}.`,
     );
+
 
   const dedupedTypeImports = [...new Set(typeImports)];
   const dedupedWrapperImports = [...new Set(wrapperImports)];
   const dedupedUnwrapperImports = [...new Set(unwrapperImports)];
   return `import type { ${dedupedTypeImports.join(", ")} } from "./types.js";
-import { ${namespace.name} } from "./protobuf/${namespace.name}.js";
+import { ${rootNamespaceName} } from "./protobuf/${rootNamespaceName}.js";
 import { ${dedupedWrapperImports.join(", ")} } from "./wrap.js";
 import { ${dedupedUnwrapperImports.join(", ")} } from "./unwrap.js";
 ${definitions}
@@ -55,12 +57,12 @@ export {
 
 /**
  * Generates a serializer and deserializer function for a single protobuf message type. The serializer function takes an instance of the message type and returns a Uint8Array containing the serialized message, while the deserializer function takes a Uint8Array containing the serialized message and returns an instance of the message type. The functions use the protobufjs library to perform the encoding and decoding, and they also utilize wrapper and unwrapper functions to convert between the protobuf message format and the TypeScript types defined for the message.
- * @param namespace - The name of the protobuf namespace that the message type belongs to, which is used to reference the correct message type in the protobufjs encoding and decoding functions
+ * @param namespaceAccess - A string representing the access path to the protobuf namespace in the generated code, which is used to reference the correct message types in the protobufjs encoding and decoding functions. For example, if the namespace is "my.api.v1", the namespaceAccess would be "my.api.v1" to access the message types defined within that namespace.
  * @param message - The protobuf message type to create the serializer and deserializer functions for
  * @returns An object containing the TypeScript definitions for the serializer and deserializer functions, the names of the functions to be exported, and arrays of imports required for the message types and wrapper/unwrapper functions used in the definitions
  */
 function createMessageSerializers(
-  namespace: string,
+  namespaceAccess: string,
   message: proto.Type,
 ): {
   definitions: string;
@@ -69,10 +71,8 @@ function createMessageSerializers(
   wrapperImports: string[];
   unwrapperImports: string[];
 } {
-  const functionSuffix = capitalizeFirstLetter(message.name);
-
-  const serialize = `serialize${functionSuffix}`;
-  const deserialize = `deserialize${functionSuffix}`;
+  const serialize = getSerializerFunctionName(message.name);
+  const deserialize = getDeserializerFunctionName(message.name);
   const wrap = getWrapperFunctionName(message.name);
   const unwrap = getUnwrapperFunctionName(message.name);
 
@@ -83,7 +83,7 @@ function createMessageSerializers(
  * @returns Uint8Array containing the serialized message
  */
 function ${serialize}(input: ${message.name}): Uint8Array {
-  return ${namespace}.${message.name}.encode(${unwrap}(input)).finish();
+  return ${namespaceAccess}.${message.name}.encode(${unwrap}(input)).finish();
 }
 
 /**
@@ -92,7 +92,7 @@ function ${serialize}(input: ${message.name}): Uint8Array {
  * @returns ${message.name} message
  */
 function ${deserialize}(input: Uint8Array): ${message.name} {
-  return ${wrap}(${namespace}.${message.name}.decode(input));
+  return ${wrap}(${namespaceAccess}.${message.name}.decode(input));
 }
 `;
   return {

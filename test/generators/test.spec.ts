@@ -314,21 +314,16 @@ describe("MessageWithoutOptional", () => {
   });
   describe("generateNamespaceTests", () => {
     it("should generate test code for a namespace with messages", () => {
-      const dummyNamespace = Object.assign(
-        Object.create(proto.Namespace.prototype),
-        {
-          name: "TestNamespace",
-          nested: {
-            TestMessage: dummyMessage,
-          },
-        },
-      );
       Object.keys(dummyMessage.fields).forEach((field) => {
         dummyMessage.fields[field].resolve = () => dummyMessage.fields[field]; // Mock the resolve method for testing
       });
       const messageTests = generateMessageTests(dummyMessage);
       assert.strictEqual(
-        generateNamespaceTests(dummyNamespace, "./relative/path"),
+        generateNamespaceTests({
+          apiName: "TestNamespace",
+          topLevelMessages: [dummyMessage],
+          relativePath: "./relative/path"
+        }),
         `
 import { describe, it } from 'node:test';
 import assert from 'node:assert';

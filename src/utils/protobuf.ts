@@ -62,6 +62,7 @@ export function getFields(message: proto.Type): MaybeOneOfField[] {
 export function getMessages(namespace: proto.Namespace): proto.Type[] {
   return Object.values(namespace.nested ?? {})
     .filter((nested) => nested instanceof proto.Type)
+    .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
     .map((type) => type as proto.Type);
 }
 
@@ -105,4 +106,54 @@ export function hasOptionalField(message: proto.Type): boolean {
       (field.resolvedType instanceof proto.Type &&
         hasOptionalField(field.resolvedType)),
   );
+}
+
+/**
+ * Recursively searches for a namespace that matches the API Versioning pattern.
+ * e.g., "MyApiV1", "my_api.v1", or "MyApi.V2"
+ * * @param root - The starting Namespace or Root object
+ * @returns The matching Namespace, or null if not found
+ */
+export function findApiNamespace(root: proto.Namespace): proto.Namespace | null {
+  // 1. Check if the current namespace itself matches the pattern
+  // We reuse our previous parse logic to validate the current node
+  const result = parseNamespace(root);
+  if (result?.baseName && result?.version) {
+    return root;
+  }
+
+  // 2. If this isn't it, check the children (nested namespaces)
+  if (root.nestedArray) {
+    for (const nested of root.nestedArray) {
+      if (nested instanceof proto.Namespace) {
+        const found = findApiNamespace(nested);
+        if (found) return found;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Parses a protobuf namespace to extract the base name and version.
+ * Supports formats like "MyApiV1", "MyApi_v1", and nested "MyApi.v1".
+ * * @param namespace - The protobuf namespace object to parse
+ * @returns An object containing the baseName and version string
+ * @throws Error if a version suffix (v1, V2, etc.) cannot be identified
+ */
+export function parseNamespace(namespace: proto.Namespace): {
+  baseName: string;
+  version: string;
+} | null {
+  const fullName = namespace.fullName || namespace.name;
+  const match = fullName.match(/^(.*)[._]?v(\d+)$/i);
+  if (!match) {
+    return null;
+  }
+  const baseName = match[1]?.replace(/[._]$/, "") || "";
+  return {
+    baseName,
+    version: match[2]!,
+  };
 }

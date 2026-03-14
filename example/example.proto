@@ -1,42 +1,47 @@
-// Text 1
+// neoproto currently only supports proto2 syntax
 syntax = "proto2";
 
-// Text 2
+package MyApi.V1;
 
-/* Test 439104 */
-package My_Api_V1;
-
+/**
+ * Metadata shared across multiple message types.
+ */
 message MyNestedMessage {
-  required int32 id = 1;
-  required int64 some_other_long = 2;
-}
-
-/* A simple message for demonstration purposes.
-    This is a continuation.
-    * More stuff
-  * MessageId: 1
-*/
-message MyMessageReq {
-  /* Text 3 */
- required string value = 1;
- optional int64 some_long = 2;
- optional MyNestedMessage nested = 3;
- required bool some_thing = 4;
- repeated string some_repeated_string = 5;
- repeated MyNestedMessage some_repeated_nested = 6;
+  optional int32 id = 1;
+  optional int64 some_other_long = 2;
 }
 
 /**
-  * This is a response message for MyMessageReq.
-  * It contains the same fields as MyMessageReq, but it is a separate message type.
-  * MessageId: 2
-  */
-message MyMessageRes {
-  required string value = 1;
+ * Request message for the MyMessage service.
+ */
+message MyMessageReq {
+  optional string value = 1;
   optional int64 some_long = 2;
   optional MyNestedMessage nested = 3;
-  required bool some_thing = 4;
-  repeated string some_repeated_string = 5;
+  optional bool some_thing = 4;
+  
+  repeated string some_repeated_strings = 5;
   repeated MyNestedMessage some_repeated_nested = 6;
-  required bytes binary_data = 7;
+}
+
+/**
+ * Response message containing the result of a MyMessageReq.
+ */
+message MyMessageRes {
+  optional string value = 1;
+  optional int64 some_long = 2;
+  optional MyNestedMessage nested = 3;
+  optional bool some_thing = 4;
+  
+  repeated string some_repeated_strings = 5;
+  repeated MyNestedMessage some_repeated_nested = 6;
+  optional bytes binary_data = 7;
+}
+
+/**
+ * Client-to-provider notification sent when a specific event occurs.
+ */
+message SomethingElseNotification {
+  optional string name = 1;
+  optional int32 id = 2;
 }

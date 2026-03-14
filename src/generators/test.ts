@@ -1,12 +1,10 @@
 import proto from "protobufjs";
 import {
   getFields,
-  getMessages,
   hasOptionalField,
   isRequiredField,
   MaybeOneOfField,
 } from "../utils/protobuf.js";
-import { isMessage } from "../utils/associations.js";
 import {
   getDeserializerFunctionName,
   getSerializerFunctionName,
@@ -49,24 +47,30 @@ const TEST_VALUES = Object.freeze({
  * @returns A string containing the content of the test file with all the generated test cases for the protobuf namespace
  */
 function generateNamespaceTests(
-  namespace: proto.Namespace,
-  relativePath: string,
-) {
-  const messages = getMessages(namespace).filter(isMessage);
+  {
+    apiName,
+    relativePath,
+    topLevelMessages,
+  }: {
 
+    apiName: string,
+    relativePath: string,
+    topLevelMessages: proto.Type[],
+  }
+): string {
   return `
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { ${messages
-    .flatMap((msg) => [
-      getSerializerFunctionName(msg.name),
-      getDeserializerFunctionName(msg.name),
-      `type ${msg.name}`,
-    ])
-    .join(", ")} } from "${relativePath}/index.js";
+import { ${topLevelMessages
+      .flatMap((msg) => [
+        getSerializerFunctionName(msg.name),
+        getDeserializerFunctionName(msg.name),
+        `type ${msg.name}`,
+      ])
+      .join(", ")} } from "${relativePath}/index.js";
 
-describe("${namespace.name}", () => {
-${messages.map((msg) => generateMessageTests(msg)).join("\n")}
+describe("${apiName}", () => {
+${topLevelMessages.map((msg) => generateMessageTests(msg)).join("\n")}
 });
 
 `;
@@ -115,12 +119,12 @@ function createTestInstance(
 ): string {
   return `{
 ${getFields(message)
-  .map((field) => {
-    const value = createMaybeOneOfTestFieldValue(field, optionalBehavior);
-    return value ? `      ${field.name}: ${value},` : null;
-  })
-  .filter(Boolean)
-  .join("\n")}
+      .map((field) => {
+        const value = createMaybeOneOfTestFieldValue(field, optionalBehavior);
+        return value ? `      ${field.name}: ${value},` : null;
+      })
+      .filter(Boolean)
+      .join("\n")}
     }`;
 }
 

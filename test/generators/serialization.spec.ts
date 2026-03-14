@@ -84,25 +84,16 @@ function deserializeTestMessage(input: Uint8Array): TestMessage {
         name: "TestMessage2",
         comment: "MessageId: 1234",
       });
-      const namespace = Object.assign(
-        Object.create(proto.Namespace.prototype),
-        {
-          name: "TestNamespace",
-          nested: {
-            TestMessage1: message1,
-            TestMessage2: message2,
-          },
-        },
-      );
+      const namespaceName = "TestNamespace";
       const message1Serializers = createMessageSerializers(
-        namespace.name,
+        namespaceName,
         message1,
       );
       const message2Serializers = createMessageSerializers(
-        namespace.name,
+        namespaceName,
         message2,
       );
-      const result = createNamespaceSerializers(namespace);
+      const result = createNamespaceSerializers(namespaceName, [message1, message2]);
       const exports = [
         ...message1Serializers.exports,
         ...message2Serializers.exports,
@@ -110,7 +101,7 @@ function deserializeTestMessage(input: Uint8Array): TestMessage {
       assert.strictEqual(
         result,
         `import type { ${message1.name}, ${message2.name} } from "./types.js";
-import { ${namespace.name} } from "./protobuf/${namespace.name}.js";
+import { ${namespaceName} } from "./protobuf/${namespaceName}.js";
 import { ${message1Serializers.wrapperImports[0]}, ${message2Serializers.wrapperImports[0]} } from "./wrap.js";
 import { ${message1Serializers.unwrapperImports[0]}, ${message2Serializers.unwrapperImports[0]} } from "./unwrap.js";
 ${message1Serializers.definitions}${message2Serializers.definitions}

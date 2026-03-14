@@ -6,8 +6,9 @@ import { createRootNamespaceTypes } from "./generators/types.js";
 import { createNamespaceTraits } from "./generators/traits.js";
 import { createRootNamespaceWrappers } from "./generators/wrap.js";
 import { createRootNamespaceUnwrappers } from "./generators/unwrap.js";
-import { associateMessages } from "./utils/associations.js";
-import { getMessages } from "./utils/protobuf.js";
+import { createNamespaceDocumentation } from "./generators/documentation.js";
+import { associateMessages, isTopLevelMessage } from "./utils/associations.js";
+import { findApiNamespace, getMessages, parseNamespace } from "./utils/protobuf.js";
 import {
   clearErrorState,
   getHasLoggedError,
@@ -98,29 +99,45 @@ async function run({
   }
 
   const { namespace } = await runProtobufjsCli(protoPath, `${outDir}/protobuf`);
-  const associations = associateMessages(getMessages(namespace));
+  const apiNamespace = findApiNamespace(namespace);
+  if (!apiNamespace) {
+    logError(
+      `No namespace matching the API versioning pattern was found in ${protoPath}. Ensure that your .proto file contains a namespace that follows the format "NamespaceV1" (e.g., "MyApiV1", "my_api.v1", or "MyApi.V2").`,
+      "",
+    );
+    return { error: true };
+  }
+  const { baseName, version } = parseNamespace(apiNamespace)!;
+  console.log(`Found API namespace: ${apiNamespace.fullName} (Base Name: ${baseName}, Version: ${version})`);
+  const topLevelMessages = getMessages(apiNamespace).filter(isTopLevelMessage);
+  const associations = associateMessages(topLevelMessages);
 
   await writeFile(
     `${outDir}/serialization.ts`,
-    createNamespaceSerializers(namespace),
+    createNamespaceSerializers(apiNamespace.fullName, topLevelMessages),
   );
   console.log(`Wrote serialization functions to ${outDir}/serialization.ts`);
 
-  await writeFile(`${outDir}/wrap.ts`, createRootNamespaceWrappers(namespace));
-  console.log(`Wrote wrapper functions to ${outDir}/wrap.ts`);
+  await writeFile(`${outDir}/wrap.ts`, createRootNamespaceWrappers(apiNamespace));
+  console.log(`Wrote wrapping functions to ${outDir}/wrap.ts`);
 
   await writeFile(
     `${outDir}/unwrap.ts`,
-    createRootNamespaceUnwrappers(namespace),
+    createRootNamespaceUnwrappers(apiNamespace),
   );
-  console.log(`Wrote unwrapper functions to ${outDir}/unwrap.ts`);
+  console.log(`Wrote unwrapping functions to ${outDir}/unwrap.ts`);
 
-  await writeFile(`${outDir}/types.ts`, createRootNamespaceTypes(namespace));
-  console.log(`Wrote TypeScript interfaces to ${outDir}/types.ts`);
+  await writeFile(`${outDir}/types.ts`, createRootNamespaceTypes(apiNamespace));
+  console.log(`Wrote wrapped TypeScript interfaces to ${outDir}/types.ts`);
 
   await writeFile(
     `${outDir}/traits.ts`,
-    createNamespaceTraits(namespace, associations),
+    createNamespaceTraits({
+      apiName: baseName,
+      apiVersion: version,
+      namespace: apiNamespace,
+      associations,
+    }),
   );
   console.log(`Wrote traits to ${outDir}/traits.ts`);
 
@@ -135,11 +152,26 @@ export * from "./wrap.js";
   );
   console.log(`Wrote index file to ${outDir}/index.ts`);
 
+  await writeFile(`${outDir}/README.md`, createNamespaceDocumentation(
+    {
+      apiName: baseName,
+      apiVersion: version,
+      protoSource: await readFile(protoPath, "utf-8"),
+      associations,
+      topLevelMessages,
+    }
+  ));
+  console.log(`Wrote README file to ${outDir}/README.md`);
+
   if (testDir) {
     await mkdir(testDir, { recursive: true });
     await writeFile(
       `${testDir}/serialization.spec.ts`,
-      generateNamespaceTests(namespace, getRelativePath(testDir, outDir)),
+      generateNamespaceTests({
+        apiName: baseName,
+        topLevelMessages,
+        relativePath: getRelativePath(testDir, outDir)
+      }),
     );
     console.log(`Wrote unit test file to ${testDir}/serialization.spec.ts`);
 

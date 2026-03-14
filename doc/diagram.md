@@ -6,4 +6,5 @@ graph TD
     neo --> D(Type definitions)
     neo --> E(Serialization / deserialization functions)
     neo --> G(Test cases)
+    neo --> F(Documentation)
 ```

@@ -12,7 +12,7 @@
     "prepublishOnly": "npm run build",
     "start": "tsx src/cli.ts",
     "test": "node --import tsx --test \"test/**/*.spec.ts\"",
-    "test:watch": "nodemon --ext ts --watch src --watch test --exec \"npm test\""
+    "test:watch": "nodemon --ext ts,proto --watch src --watch test --watch example --exec \"npm test\""
   },
   "files": [
     "dist/**/*"
@@ -40,8 +40,5 @@
     "protobufjs": "^7.5.4",
     "protobufjs-cli": "^2.0.0",
     "tsx": "^4.21.0"
-  },
-  "overrides": {
-    "minimatch": "10.2.2"
   }
 }

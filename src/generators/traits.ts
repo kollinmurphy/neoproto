@@ -8,17 +8,28 @@ import {
   getSerializerFunctionName,
 } from "./serialization.js";
 import { getMessages } from "../utils/protobuf.js";
-import { getMessageId, isMessage } from "../utils/associations.js";
+import { getMessageId, isTopLevelMessage } from "../utils/associations.js";
 
 /**
  * Generates wrapper functions for all messages and enums in a protobuf namespace, including nested namespaces, and returns the content of the wrapper file as a string.
+ * @param apiName - The name of the API, which is included in the generated traits for informational purposes
+ * @param apiVersion - The version of the API, which is included in the generated traits for informational purposes
  * @param namespace - The protobuf namespace to create wrapper functions for
  * @param associations - An array of tuples representing request-response message associations, where each tuple contains a request message type and its corresponding response message type. These associations are used to generate additional traits for request-response pairs.
  * @returns A string containing the content of the wrapper file with all the generated wrapper functions for the protobuf namespace
  */
 function createNamespaceTraits(
-  namespace: proto.Namespace,
-  associations: [proto.Type, proto.Type][],
+  {
+    apiName,
+    apiVersion,
+    namespace,
+    associations,
+  }: {
+    apiName: string;
+    apiVersion: string;
+    namespace: proto.Namespace,
+    associations: [proto.Type, proto.Type][],
+  }
 ): string {
   let traitsContent = "";
   const messageTraits: string[] = [];
@@ -34,7 +45,6 @@ function createNamespaceTraits(
     messageTraits.push(name);
     allImports.push(...imports);
   }
-  const { baseName, version } = parseNamespace(namespace.name);
   messageTraits.push("API_NAME", "API_VERSION");
 
   let associationTraits = "";
@@ -53,8 +63,8 @@ function createNamespaceTraits(
 
   return `import { ${[...new Set(allImports)].sort().join(", ")} } from "./serialization.js";
 
-const API_NAME = "${baseName}";
-const API_VERSION = ${version};
+const API_NAME = "${apiName}";
+const API_VERSION = "${apiVersion}";
 ${traitsContent}
 ${associationTraits}
 export {
@@ -64,31 +74,12 @@ export {
 }
 
 /**
- * Parses a protobuf namespace name to extract the base name and version number. The expected format for the namespace name is "NamespaceV1", where "Namespace" is the base name and "1" is the version number. If the namespace name does not match this format, an error is thrown.
- * @param namespace - The protobuf namespace name to parse
- * @returns An object containing the base name and version number extracted from the namespace name
- * @throws An error if the namespace name does not match the expected format
- */
-function parseNamespace(namespace: string) {
-  const match = namespace.match(/^(.*)_?v(\d+)$/i);
-  if (!match) {
-    throw new Error(
-      `Invalid namespace format: ${namespace}. Expected format is "NamespaceV1"`,
-    );
-  }
-  return {
-    baseName: match[1]?.replace(/_?$/, "") || "", // Remove trailing underscore if present
-    version: match[2],
-  };
-}
-
-/**
  * Creates a traits object for a protobuf message type, which includes the message ID, name, and references to the corresponding serializer and deserializer functions. If the message does not have an associated message ID, the function returns null and logs an error indicating that the message is missing a message ID.
  * @param message - The protobuf message type to create the traits object for
  * @returns An object containing the TypeScript definition for the traits object, the name of the traits object, and an array of imports required for the serializer and deserializer functions. If the message is missing a message ID, it returns null.
  */
 function createMessageTraits(message: proto.Type) {
-  if (!isMessage(message)) {
+  if (!isTopLevelMessage(message)) {
     return null;
   }
   const id = getMessageId(message);
