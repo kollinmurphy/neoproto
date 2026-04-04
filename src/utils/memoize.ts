@@ -16,11 +16,7 @@ function memoize<Args extends unknown[], Result>(
     const key = resolver ? resolver(...args) : JSON.stringify(args);
 
     if (cache.has(key)) {
-      const result = cache.get(key) || null;
-      if (!result) {
-        console.log("RECURSIVE TYPE");
-      }
-      return result;
+      return cache.get(key) || null;
     }
 
     // TRICKY: eagerly set the value to null before computing the value so that

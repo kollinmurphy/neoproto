@@ -14,6 +14,7 @@ Parameters:
   ${"--proto, -p".padEnd(20)}(required) Path to the .proto file to process.
   ${"--out-dir, -o".padEnd(20)}(required) Directory where the generated files will be saved.
   ${"--test-dir, -t".padEnd(20)}(optional) Directory where the test files will be saved.
+  ${"--doc-path, -d".padEnd(20)}(optional) Path to where the markdown documentation file will be saved. If unset, falls back to README.md inside the out dir.
 
 Flags:
   ${"--force, -f".padEnd(20)}Overwrite the output directory if it already exists. (Use with caution! This will delete all existing files in the output directory.)
@@ -71,6 +72,7 @@ async function main() {
   }
   try {
     const { error } = await run({
+      docPath: getParameter("--doc-path", "-d", { required: false }),
       outDir: getParameter("--out-dir", "-o", { required: true }),
       protoPath: getParameter("--proto", "-p", { required: true }),
       testDir: getParameter("--test-dir", "-t", { required: false }),

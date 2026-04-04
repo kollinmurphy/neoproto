@@ -67,6 +67,9 @@ interface Options {
 
   /** The path to the .proto file to process. */
   protoPath: string;
+  
+  /** The path to create the markdown documentation file. Defaults to README.md inside outDir. */
+  docPath?: string;
 
   /** The output directory where test files will be saved. */
   testDir?: string;
@@ -91,6 +94,7 @@ interface Options {
  * @throws If the output directory or test directory already exists and the --force flag is not provided, the function will log an error and exit the process.
  */
 async function run({
+  docPath,
   outDir,
   protoPath,
   testDir,
@@ -178,7 +182,14 @@ export * from "./wrap.js";
     ));
   console.log(`Wrote index file to ${outDir}/index.ts`);
 
-  await writeFile(`${outDir}/README.md`, prependHeader(createNamespaceDocumentation(
+  const readmePath = docPath || `${outDir}/README.md`;
+  if (!flagForce && existsSync(readmePath)) {
+    logError(
+      `Documentation file ${readmePath} already exists. Use --force or -f to overwrite.`,
+    );
+    return { error: true };
+  }
+  await writeFile(readmePath, prependHeader(createNamespaceDocumentation(
     {
       apiName,
       apiVersion: version,
@@ -187,7 +198,7 @@ export * from "./wrap.js";
       topLevelMessages,
     }
   ), "md"));
-  console.log(`Wrote README file to ${outDir}/README.md`);
+  console.log(`Wrote markdown documentation to ${readmePath}`);
 
   if (testDir) {
     await mkdir(testDir, { recursive: true });
