@@ -1,4 +1,5 @@
 import proto from "protobufjs";
+import { memoize } from "./memoize";
 
 /**
  * Checks whether a protobuf field is marked as required. The field.optional property is not reliable for determining this.
@@ -23,7 +24,7 @@ export type MaybeOneOfField = proto.Field | OneOfField;
  * @param message - The protobuf message type to retrieve fields from.
  * @returns An array of protobuf fields sorted alphabetically by field name, with fields that are part of a "oneof" group grouped together and sorted by their field names as well.
  */
-export function getFields(message: proto.Type): MaybeOneOfField[] {
+function unmemoizedGetFields(message: proto.Type): MaybeOneOfField[] {
   const { oneOf, noOneOf } = Object.values(message.fields).reduce(
     (acc, field) => {
       if (field.partOf) {
@@ -53,6 +54,8 @@ export function getFields(message: proto.Type): MaybeOneOfField[] {
     }),
   ].sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 }
+
+export const getFields = memoize(unmemoizedGetFields, (message) => message.fullName);
 
 /**
  * Retrieves all protobuf message types defined within a given namespace, including those nested within other namespaces, and returns them as a flat array.
@@ -108,25 +111,35 @@ export function hasOptionalField(message: proto.Type): boolean {
   );
 }
 
+interface NamespaceDetails {
+  baseName: string;
+  version: string;
+}
+
 /**
  * Recursively searches for a namespace that matches the API Versioning pattern.
  * e.g., "MyApiV1", "my_api.v1", or "MyApi.V2"
  * * @param root - The starting Namespace or Root object
  * @returns The matching Namespace, or null if not found
  */
-export function findApiNamespace(root: proto.Namespace): proto.Namespace | null {
+export function findApiNamespace(root: proto.Namespace, details?: NamespaceDetails | null): NamespaceDetails & {
+  namespace: proto.Namespace;
+  } | null {
+    let namespaceDetails = details || parseNamespace(root);
+
   // 1. Check if the current namespace itself matches the pattern
   // We reuse our previous parse logic to validate the current node
-  const result = parseNamespace(root);
-  if (result?.baseName && result?.version) {
-    return root;
+  const hasMessages = getMessages(root).length > 0;
+    console.log(`checking ns ${root.fullName}. det: ${namespaceDetails}. hasMess: ${hasMessages}`);
+  if (namespaceDetails && hasMessages) {
+    return {...namespaceDetails, namespace: root}
   }
 
   // 2. If this isn't it, check the children (nested namespaces)
   if (root.nestedArray) {
     for (const nested of root.nestedArray) {
       if (nested instanceof proto.Namespace) {
-        const found = findApiNamespace(nested);
+        const found = findApiNamespace(nested, namespaceDetails);
         if (found) return found;
       }
     }
@@ -142,10 +155,7 @@ export function findApiNamespace(root: proto.Namespace): proto.Namespace | null 
  * @returns An object containing the baseName and version string
  * @throws Error if a version suffix (v1, V2, etc.) cannot be identified
  */
-export function parseNamespace(namespace: proto.Namespace): {
-  baseName: string;
-  version: string;
-} | null {
+export function parseNamespace(namespace: proto.Namespace): NamespaceDetails | null {
   const fullName = namespace.fullName || namespace.name;
   const match = fullName.match(/^(.*)[._]?v(\d+)$/i);
   if (!match) {

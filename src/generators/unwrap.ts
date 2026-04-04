@@ -8,7 +8,6 @@ import {
   isRequiredField,
   MaybeOneOfField,
 } from "../utils/protobuf.js";
-import { logError } from "../utils/logger.js";
 
 const INPUT_VARIABLE = "input";
 const MAP_VARIABLE = "item";
@@ -214,11 +213,6 @@ function createMaybeOptionalFieldUnwrapExpression(field: proto.Field): {
   dependencies: Dependencies[];
 } {
   const isRequired = isRequiredField(field);
-  if (!isRequired && field.resolvedType instanceof proto.Enum) {
-    logError(
-      `Field ${field.name} in message ${field.parent?.name} is an optional enum. Enums must be required and have a default zero value for an unspecified state.`,
-    );
-  }
   const fieldName = field.name;
   const baseExpression = createRequiredFieldUnwrapExpression(
     field,

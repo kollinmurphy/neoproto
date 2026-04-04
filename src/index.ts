@@ -8,7 +8,7 @@ import { createRootNamespaceWrappers } from "./generators/wrap.js";
 import { createRootNamespaceUnwrappers } from "./generators/unwrap.js";
 import { createNamespaceDocumentation } from "./generators/documentation.js";
 import { associateMessages, isTopLevelMessage } from "./utils/associations.js";
-import { findApiNamespace, getMessages, parseNamespace } from "./utils/protobuf.js";
+import { findApiNamespace, getMessages } from "./utils/protobuf.js";
 import {
   clearErrorState,
   getHasLoggedError,
@@ -123,15 +123,15 @@ async function run({
   }
 
   const { namespace } = await runProtobufjsCli(protoPath, `${outDir}/protobuf`);
-  const apiNamespace = findApiNamespace(namespace);
-  if (!apiNamespace) {
+  const nsResult = findApiNamespace(namespace);
+  if (!nsResult) {
     logError(
       `No namespace matching the API versioning pattern was found in ${protoPath}. Ensure that your .proto file contains a namespace that follows the format "NamespaceV1" (e.g., "MyApiV1", "my_api.v1", or "MyApi.V2").`,
       "",
     );
     return { error: true };
   }
-  const { baseName, version } = parseNamespace(apiNamespace)!;
+  const { baseName, namespace: apiNamespace, version } = nsResult;
   console.log(`Found API namespace: ${apiNamespace.fullName} (Base Name: ${baseName}, Version: ${version})`);
   const topLevelMessages = getMessages(apiNamespace).filter(isTopLevelMessage);
   const associations = associateMessages(topLevelMessages);

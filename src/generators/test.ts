@@ -10,6 +10,7 @@ import {
   getSerializerFunctionName,
 } from "./serialization.js";
 import { logError } from "../utils/logger.js";
+import { memoize } from "../utils/memoize.js";
 
 // The maximum integer value that can be represented by the Long library, which uses a two's complement 64-bit representation.
 const MAX_64_BIT_INT = 9_223_372_036_854_775_807n;
@@ -121,7 +122,7 @@ function createTestInstance(
   optionalBehavior: OptionalBehavior,
 ): string {
   return `{
-${getFields(message)
+${(getFields(message) ?? [])
       .map((field) => {
         const value = createMaybeOneOfTestFieldValue(field, optionalBehavior);
         return value ? `      ${field.name}: ${value},` : null;
@@ -157,7 +158,7 @@ function createMaybeOneOfTestFieldValue(
  * @param optionalBehavior - The behavior to apply for optional fields when creating the test value, which can be "all-required" to include all fields as required, "omit-optional" to omit optional fields from the test value, or "default-optional" to include optional fields with default values (e.g., empty string for strings, 0 for numbers, false for booleans)
  * @returns A string containing the TypeScript representation of the test value for the specified protobuf field, with handling of optional fields according to the specified behavior. If the field is omitted due to being optional and the optional behavior is "omit-optional", it returns null.
  */
-function createTestFieldValue(
+function unmemoizedCreateTestFieldValue(
   field: proto.Field,
   optionalBehavior: OptionalBehavior,
 ): string | null {
@@ -175,6 +176,10 @@ function createTestFieldValue(
         { ...field, repeated: false } as proto.Field,
         optionalBehavior,
       );
+      if (!instance) {
+        // TRICKY: If this is a recursive type, we just set it to an empty array.
+        return `[]`;
+      }
       return `[${instance}, ${instance}]`;
     }
     return TEST_VALUES.repeated_default;
@@ -221,6 +226,15 @@ function createTestFieldValue(
     }
   }
 }
+
+const createTestFieldValue = memoize(unmemoizedCreateTestFieldValue, (field, opt) =>{
+  const name = field.resolvedType?.fullName || field.fullName;
+  if (!name) {
+    throw new Error(`Failed to resolve a name for ${field}`);
+  }
+  return `${name}|${field.repeated}|${opt}`;
+}
+)
 
 export {
   createTestFieldValue,
