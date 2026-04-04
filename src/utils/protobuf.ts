@@ -55,7 +55,9 @@ function unmemoizedGetFields(message: proto.Type): MaybeOneOfField[] {
   ].sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 }
 
-export const getFields = memoize(unmemoizedGetFields, (message) => message.fullName);
+const getFieldsUnsafe = memoize(unmemoizedGetFields, (message) => message.fullName);
+
+export const getFields = (message: proto.Type) => getFieldsUnsafe(message) ?? [];
 
 /**
  * Retrieves all protobuf message types defined within a given namespace, including those nested within other namespaces, and returns them as a flat array.

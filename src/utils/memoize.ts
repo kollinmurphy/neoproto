@@ -3,6 +3,7 @@ type Resolver<Args extends unknown[]> = (...args: Args) => string;
 
 /**
  * A generic memoize function with a custom key resolver.
+ * If memoized function is recursively called with the same key, it will return null.
  */
 function memoize<Args extends unknown[], Result>(
   fn: (...args: Args) => Result | null,

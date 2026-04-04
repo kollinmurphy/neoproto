@@ -122,7 +122,7 @@ function createTestInstance(
   optionalBehavior: OptionalBehavior,
 ): string {
   return `{
-${(getFields(message) ?? [])
+${getFields(message)
       .map((field) => {
         const value = createMaybeOneOfTestFieldValue(field, optionalBehavior);
         return value ? `      ${field.name}: ${value},` : null;
