@@ -164,7 +164,7 @@ function createRequiredFieldWrapExpression(field: proto.Field, name: string) {
     case "sint64":
     case "uint64":
       return {
-        content: `typeof ${name} === "number" ? BigInt(${name}) : ${name}.toBigInt()`,
+        content: `BigInt(typeof ${name} === "number" ? ${name} : ${name}.toString())`,
         dependencies: [],
       };
     default:

@@ -62,8 +62,17 @@ function createRootNamespaceUnwrappers({
 }
 `,
       ]
-      : []),
-  ].join("\n");
+      : []),      
+      ...dependencies.has("long")
+      ? [`const MAX_LONG = BigInt(long.MAX_VALUE.toString());
+function toLong(value: bigint): long {
+  if (value > MAX_LONG)
+    throw new Error(\`Unable to represent \${value} as a long\`);
+  return long.fromString(value.toString());
+}
+`] : ""
+      ,
+  ].filter(Boolean).join("\n");
 
   return `${importLines}
 
@@ -186,7 +195,7 @@ function createRequiredFieldUnwrapExpression(
     case "sint64":
     case "uint64":
       return {
-        content: `long.fromString(${name}.toString())`,
+        content: `toLong(${name})`,
         dependencies: ["long"],
       };
     default:

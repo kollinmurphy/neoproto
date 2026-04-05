@@ -54,19 +54,26 @@ function createNamespaceTraits(
     const requestTraitName = getTraitName(request.name);
     const responseTraitName = getTraitName(response.name);
     associationTraits += `const ${pairTraitsName} = {
-  name: "${pairName}",
+  name: "${pairName}" as const,
   request: ${requestTraitName},
   response: ${responseTraitName},
-};\n`;
+};\n\n`;
     messageTraits.push(pairTraitsName);
   }
 
   return `import { ${[...new Set(allImports)].sort().join(", ")} } from "./serialization.js";
 
-const API_NAME = "${apiName}";
-const API_VERSION = "${apiVersion}";
+const API_NAME = "${apiName}" as const;
+const API_VERSION = "${apiVersion}" as const;
+
+// #region message traits
 ${traitsContent}
+// #endregion
+
+// #region association traits
 ${associationTraits}
+// #endregion
+
 export {
   ${messageTraits.sort().join(",\n  ")}
 };
@@ -86,11 +93,11 @@ function createMessageTraits(message: proto.Type) {
   const traitName = getTraitName(message.name);
   const serialize = getSerializerFunctionName(message.name);
   const deserialize = getDeserializerFunctionName(message.name);
-  const idLine = id ? `\n  id: ${id},` : "";
+  const idLine = id ? `\n  id: ${id} as const,` : "";
   const definition = `
 const ${traitName} = {
   deserialize: ${deserialize},${idLine}
-  name: "${message.name}",
+  name: "${message.name}" as const,
   serialize: ${serialize},
 };\n`;
   return {
