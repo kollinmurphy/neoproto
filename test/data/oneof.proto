@@ -1,0 +1,23 @@
+syntax = "proto2";
+package My_Api_V1;
+
+/* MessageId: 5 */
+message OneOfMessage {
+  required string query = 1;
+  
+  /** Only one of these fields can be set at a time. */
+  oneof test_oneof {
+    /** This means it's a name string and this is a really long comment.
+    With.
+    Multiple.
+    Lines. */
+    string name = 4;
+    /** This means it's a number */
+    int32 number = 5;
+  }
+
+  oneof test_oneof2 {
+    int32 number2 = 7;
+    string name2 = 6;
+  }
+}

@@ -1,6 +1,7 @@
 import assert from "node:assert";
 import { beforeEach, describe, it } from "node:test";
 import {
+  createMaybeOneOfTestFieldValue,
   createTestFieldValue,
   createTestInstance,
   generateMessageTests,
@@ -11,6 +12,7 @@ import proto from "protobufjs";
 import { clearErrorState, getHasLoggedError } from "../../src/utils/logger";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
+import { getFields, OneOfField } from "../../src/utils/protobuf";
 
 function getTestFieldName(): string {
   return randomUUID();
@@ -170,6 +172,43 @@ describe("test.ts", () => {
       assert.strictEqual(getHasLoggedError(), true);
     });
   });
+  describe("createMaybeOneOfTestFieldValue", () => {
+    describe("for non-oneof fields", () => {
+      it("should return the same value as createTestFieldValue", async () => {
+        const ns = await loadProto(join(__dirname, "../data/primitives.proto"));
+        const msg = ns.lookupType("PrimitiveExample")!;
+        for (const [type] of primitiveTypes) {
+          const field = msg.fields[toCamelCase(`required_${type}`)]!;
+          assert.strictEqual(
+            createMaybeOneOfTestFieldValue(field, "omit-optional"),
+            createTestFieldValue(field, "omit-optional"),
+          );
+        }
+      });
+    });
+    describe("for oneof fields", () => {
+      it("should return null if omitting optional fields", async () => {
+        const ns = await loadProto(join(__dirname, "../data/oneof.proto"));
+        const field = getFields(ns.lookupType("OneOfMessage")).find((f) => (f as OneOfField)._isOneOf && f.name === "testOneof")! as OneOfField;
+        assert.strictEqual(
+          createMaybeOneOfTestFieldValue(field, "omit-optional"),
+          null,
+        );
+        assert.strictEqual(
+          createMaybeOneOfTestFieldValue(field, "default-optional"),
+          null,
+        );
+      });
+      it("should return the value for the middle field in the oneof", async () => {
+        const ns = await loadProto(join(__dirname, "../data/oneof.proto"));
+        const field = getFields(ns.lookupType("OneOfMessage")).find((f) => (f as OneOfField)._isOneOf && f.name === "testOneof")! as OneOfField;
+        assert.strictEqual(
+          createMaybeOneOfTestFieldValue(field, "all-required"),
+          `{ number: ${TEST_VALUES.number} }`,
+        );
+      });
+    })
+  })
   describe("createTestInstance", () => {
     it("should create an instance of a message with all required fields", async () => {
       const ns = await loadProto(join(__dirname, "../data/primitives.proto"));

@@ -237,6 +237,7 @@ const createTestFieldValue = memoize(unmemoizedCreateTestFieldValue, (field, opt
 )
 
 export {
+  createMaybeOneOfTestFieldValue,
   createTestFieldValue,
   createTestInstance,
   generateMessageTests,
