@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package my_api.v9;
+
+enum ExampleEnum {
+  UNSPECIFIED = 0;
+  FIRST = 1;
+  SECOND = 2;
+  THIRD = 3;
+}
+
+message SomeMessage {
+  required ExampleEnum example_enum = 1;
+}

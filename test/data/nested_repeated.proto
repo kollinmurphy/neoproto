@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+package my_api.v9.pb;
+
+message SomeMessage {
+  message NestedMessage {
+    repeated string nested_field = 2;
+  }
+
+  repeated NestedMessage some_repeated_nested = 1;
+}

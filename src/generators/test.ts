@@ -228,11 +228,11 @@ function unmemoizedCreateTestFieldValue(
 }
 
 const createTestFieldValue = memoize(unmemoizedCreateTestFieldValue, (field, opt) =>{
-  const name = field.resolvedType?.fullName || field.fullName;
+  const name = field.resolvedType?.fullName || field.fullName || field.name;
   if (!name) {
     throw new Error(`Failed to resolve a name for ${field}`);
   }
-  return `${name}|${field.repeated}|${opt}`;
+  return `${name}|${field.repeated ?? false}|${opt}|${isRequiredField(field)}`;
 }
 )
 

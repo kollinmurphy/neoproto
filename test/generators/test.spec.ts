@@ -9,31 +9,42 @@ import {
 } from "../../src/generators/test";
 import proto from "protobufjs";
 import { clearErrorState, getHasLoggedError } from "../../src/utils/logger";
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 
-const dummyMessage = Object.assign(Object.create(proto.Type.prototype), {
-  name: "TestMessage",
-  comment: "MessageId: 998",
-  fields: {
-    stringField: Object.assign(Object.create(proto.Field.prototype), {
-      name: "stringField",
-      rule: "required",
-      type: "string",
-    }),
-    intField: Object.assign(Object.create(proto.Field.prototype), {
-      name: "intField",
-      rule: "required",
-      type: "int32",
-    }),
-    optField: Object.assign(Object.create(proto.Field.prototype), {
-      name: "optField",
-      rule: "optional",
-      type: "string",
-    }),
-  },
-});
-Object.keys(dummyMessage.fields).forEach((field) => {
-  dummyMessage.fields[field].resolve = () => dummyMessage.fields[field]; // Mock the resolve method for testing
-});
+function getTestFieldName(): string {
+  return randomUUID();
+}
+
+async function loadProto(protoPath: string): Promise<proto.Namespace> {
+  const root = await proto.load(protoPath);
+  const namespaceStr = Object.keys(root.nested ?? {})[0];
+  if (!namespaceStr) throw new Error(`No namespace key found in ${protoPath}`);
+  const namespace = root.nested?.[namespaceStr] as proto.Namespace;
+  if (!namespace)
+    throw new Error(`Namespace ${namespaceStr} not found in ${protoPath}`);
+  return namespace.resolveAll();
+}
+
+function toCamelCase(str: string): string {
+  return str.replace(/_([a-z])/g, (_, p1) => p1.toUpperCase());
+}
+
+const primitiveTypes: [string, string, string][] = [
+  ["string", TEST_VALUES.string, TEST_VALUES.string_default],
+  ["int32", TEST_VALUES.number, TEST_VALUES.number_default],
+  ["uint32", TEST_VALUES.number, TEST_VALUES.number_default],
+  ["sint32", TEST_VALUES.number, TEST_VALUES.number_default],
+  ["fixed32", TEST_VALUES.number, TEST_VALUES.number_default],
+  ["sfixed32", TEST_VALUES.number, TEST_VALUES.number_default],
+  ["int64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
+  ["uint64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
+  ["sint64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
+  ["fixed64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
+  ["sfixed64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
+  ["bool", TEST_VALUES.boolean, TEST_VALUES.boolean_default],
+  ["bytes", TEST_VALUES.bytes, TEST_VALUES.bytes_default],
+];
 
 describe("test.ts", () => {
   beforeEach(() => {
@@ -46,6 +57,7 @@ describe("test.ts", () => {
           {
             rule: "optional",
             name: "testField",
+            fullName: getTestFieldName(),
           } as unknown as proto.Field,
           "omit-optional",
         ),
@@ -57,6 +69,7 @@ describe("test.ts", () => {
           {
             rule: "required",
             name: "testField",
+            fullName: getTestFieldName(),
             resolvedType: { name: "string" },
           } as unknown as proto.Field,
           "omit-optional",
@@ -64,148 +77,79 @@ describe("test.ts", () => {
         TEST_VALUES.string,
       ));
     describe("for repeated fields", () => {
-      it("should return an empty array when behavior is not 'all-required'", () =>
+      it("should return an empty array when behavior is not 'all-required'", async () => {
+        const ns = await loadProto(join(__dirname, "../data/repeated.proto"));
+        const field =
+          ns.lookupType("SomeMessage")!.fields[toCamelCase("some_repeated")]!;
         assert.strictEqual(
-          createTestFieldValue(
-            {
-              repeated: true,
-              name: "testField",
-              resolvedType: { name: "string" },
-            } as unknown as proto.Field,
-            "omit-optional",
-          ),
+          createTestFieldValue(field, "omit-optional"),
           TEST_VALUES.repeated_default,
-        ));
-      it("should return two instances when behavior is 'all-required'", () =>
+        );
+      });
+      it("should return two instances when behavior is 'all-required'", async () => {
+        const ns = await loadProto(join(__dirname, "../data/repeated.proto"));
+        const field =
+          ns.lookupType("SomeMessage")!.fields[toCamelCase("some_repeated")]!;
         assert.strictEqual(
-          createTestFieldValue(
-            {
-              repeated: true,
-              name: "testField",
-              resolvedType: { name: "string" },
-            } as unknown as proto.Field,
-            "all-required",
-          ),
+          createTestFieldValue(field, "all-required"),
           `[${TEST_VALUES.string}, ${TEST_VALUES.string}]`,
-        ));
-      it("should return the correct type", () =>
+        );
+      });
+      it("should return the correct type", async () => {
+        const ns = await loadProto(join(__dirname, "../data/repeated.proto"));
+        const field =
+          ns.lookupType("SomeMessage")!.fields[
+            toCamelCase("some_repeated_num")
+          ]!;
         assert.strictEqual(
-          createTestFieldValue(
-            {
-              repeated: true,
-              name: "testField",
-              resolvedType: { name: "int32" },
-            } as unknown as proto.Field,
-            "all-required",
-          ),
+          createTestFieldValue(field, "all-required"),
           `[${TEST_VALUES.number}, ${TEST_VALUES.number}]`,
-        ));
-      it("should support an inner message type", () =>
+        );
+      });
+      it("should support an inner message type", async () => {
+        const ns = await loadProto(join(__dirname, "../data/repeated.proto"));
+        const field =
+          ns.lookupType("SomeOtherMessage")!.fields[toCamelCase("test_field")]!;
         assert.strictEqual(
-          createTestFieldValue(
-            Object.assign(Object.create(proto.Field.prototype), {
-              repeated: true,
-              name: "testField",
-              resolvedType: Object.assign(Object.create(proto.Type.prototype), {
-                name: "NestedMessage",
-                fields: {
-                  nestedField: Object.assign(
-                    Object.create(proto.Field.prototype),
-                    {
-                      name: "nestedField",
-                      type: "string",
-                    },
-                  ),
-                },
-              }),
-            }),
-            "all-required",
-          )?.replace(/\s/g, ""), // Remove whitespace for easier comparison
+          createTestFieldValue(field, "all-required")?.replace(/\s/g, ""), // Remove whitespace for easier comparison
           `[{nestedField:${TEST_VALUES.string},},{nestedField:${TEST_VALUES.string},}]`,
-        ));
-      it("should support nested repeated fields", () =>
-        assert.strictEqual(
-          createTestFieldValue(
-            Object.assign(Object.create(proto.Field.prototype), {
-              repeated: true,
-              name: "testField",
-              resolvedType: Object.assign(Object.create(proto.Type.prototype), {
-                name: "NestedMessage",
-                fields: {
-                  nestedField: Object.assign(
-                    Object.create(proto.Field.prototype),
-                    {
-                      repeated: true,
-                      name: "nestedField",
-                      type: "string",
-                    },
-                  ),
-                },
-              }),
-            }),
-            "all-required",
-          )?.replace(/\s/g, ""), // Remove whitespace for easier comparison
-          `[{nestedField:[${TEST_VALUES.string},${TEST_VALUES.string}],},{nestedField:[${TEST_VALUES.string},${TEST_VALUES.string}],}]`,
-        ));
+        );
+      });
+    });
+    it("should support nested repeated fields", async () => {
+      const ns = await loadProto(
+        join(__dirname, "../data/nested_repeated.proto"),
+      );
+      const field = ns.lookupType("SomeMessage").fieldsArray[0]!;
+      const val = createTestFieldValue(field, "all-required");
+      assert.strictEqual(
+        val?.replace(/\s/g, ""),
+        `[{nestedField:[${TEST_VALUES.string},${TEST_VALUES.string}],},{nestedField:[${TEST_VALUES.string},${TEST_VALUES.string}],}]`,
+      );
     });
     describe("for enum fields", () => {
-      it("should return the key of the middle enum value", () =>
+      it("should return the key of the middle enum value", async () => {
+        const ns = await loadProto(join(__dirname, "../data/enum.proto"));
+        const field = ns.lookupType("SomeMessage").fieldsArray[0]!;
         assert.strictEqual(
-          createTestFieldValue(
-            Object.assign(Object.create(proto.Field.prototype), {
-              name: "testField",
-              rule: "required",
-              resolvedType: Object.assign(Object.create(proto.Enum.prototype), {
-                name: "TestEnum",
-                values: {
-                  FIRST: 0,
-                  SECOND: 1,
-                  THIRD: 2,
-                },
-              }),
-            }),
-            "omit-optional",
-          ),
+          createTestFieldValue(field, "omit-optional"),
           `"SECOND"`,
-        ));
+        );
+      });
     });
-    it("should return the correct values for all primitive types", () => {
-      const primitiveTypes = [
-        ["string", TEST_VALUES.string, TEST_VALUES.string_default],
-        ["int32", TEST_VALUES.number, TEST_VALUES.number_default],
-        ["uint32", TEST_VALUES.number, TEST_VALUES.number_default],
-        ["sint32", TEST_VALUES.number, TEST_VALUES.number_default],
-        ["fixed32", TEST_VALUES.number, TEST_VALUES.number_default],
-        ["sfixed32", TEST_VALUES.number, TEST_VALUES.number_default],
-        ["int64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
-        ["uint64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
-        ["sint64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
-        ["fixed64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
-        ["sfixed64", TEST_VALUES.bigint, TEST_VALUES.bigint_default],
-        ["bool", TEST_VALUES.boolean, TEST_VALUES.boolean_default],
-        ["bytes", TEST_VALUES.bytes, TEST_VALUES.bytes_default],
-      ];
+    it("should return the correct values for all primitive types", async () => {
+      const ns = await loadProto(join(__dirname, "../data/primitives.proto"));
+      const msg = ns.lookupType("PrimitiveExample")!;
       for (const [type, expectedValue, defaultValue] of primitiveTypes) {
+        const reqField = msg.fields[toCamelCase(`required_${type}`)]!;
         assert.strictEqual(
-          createTestFieldValue(
-            {
-              name: "testField",
-              rule: "required",
-              type,
-            } as unknown as proto.Field,
-            "omit-optional",
-          ),
+          createTestFieldValue(reqField, "omit-optional"),
           expectedValue,
         );
+
+        const optField = msg.fields[toCamelCase(`optional_${type}`)]!;
         assert.strictEqual(
-          createTestFieldValue(
-            {
-              name: "testField",
-              rule: "optional",
-              type,
-            } as unknown as proto.Field,
-            "default-optional",
-          ),
+          createTestFieldValue(optField, "default-optional"),
           defaultValue,
         );
       }
@@ -214,6 +158,7 @@ describe("test.ts", () => {
       assert.strictEqual(
         createTestFieldValue(
           {
+            fullName: getTestFieldName(),
             name: "testField",
             rule: "required",
             type: "unsupportedType",
@@ -226,19 +171,44 @@ describe("test.ts", () => {
     });
   });
   describe("createTestInstance", () => {
-    it("should create an instance of a message with all required fields", () =>
+    it("should create an instance of a message with all required fields", async () => {
+      const ns = await loadProto(join(__dirname, "../data/primitives.proto"));
+      const msg = ns.lookupType("PrimitiveExample")!;
       assert.strictEqual(
-        createTestInstance(dummyMessage, "omit-optional").replace(/\s/g, ""),
-        `{intField:${TEST_VALUES.number},stringField:${TEST_VALUES.string},}`,
-      ));
-    it("should include optional fields when required by the behavior", () =>
+        createTestInstance(msg, "omit-optional").replace(/\s/g, ""),
+        `{${primitiveTypes
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .reduce((acc, [type, expectedValue]) => {
+            const fieldName = toCamelCase(`required_${type}`);
+            return `${acc}${fieldName}:${expectedValue},`;
+          }, "")}}`.replace(/\s/g, ""),
+      );
+    });
+    it("should include optional fields when required by the behavior", async () => {
+      const ns = await loadProto(join(__dirname, "../data/primitives.proto"));
+      const msg = ns.lookupType("PrimitiveExample")!;
+      const optFields = primitiveTypes
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .reduce((acc, [type, _, defaultValue]) => {
+          const fieldName = toCamelCase(`optional_${type}`);
+          return `${acc}${fieldName}:${defaultValue},`;
+        }, "");
+      const reqFields = primitiveTypes
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .reduce((acc, [type, expectedValue]) => {
+          const fieldName = toCamelCase(`required_${type}`);
+          return `${acc}${fieldName}:${expectedValue},`;
+        }, "");
       assert.strictEqual(
-        createTestInstance(dummyMessage, "default-optional").replace(/\s/g, ""),
-        `{intField:${TEST_VALUES.number},optField:${TEST_VALUES.string_default},stringField:${TEST_VALUES.string},}`,
-      ));
+        createTestInstance(msg, "default-optional").replace(/\s/g, ""),
+        `{${optFields}${reqFields}}`.replace(/\s/g, ""),
+      );
+    });
   });
   describe("generateMessageTests", () => {
-    it("should generate test code", () => {
+    it("should generate test code", async () => {
+      const ns = await loadProto(join(__dirname, "../data/dummy.proto"));
+      const dummyMessage = ns.lookupType("TestMessage")!;
       assert.strictEqual(
         generateMessageTests(dummyMessage),
         `
@@ -313,16 +283,15 @@ describe("MessageWithoutOptional", () => {
     });
   });
   describe("generateNamespaceTests", () => {
-    it("should generate test code for a namespace with messages", () => {
-      Object.keys(dummyMessage.fields).forEach((field) => {
-        dummyMessage.fields[field].resolve = () => dummyMessage.fields[field]; // Mock the resolve method for testing
-      });
+    it("should generate test code for a namespace with messages", async () => {
+      const ns = await loadProto(join(__dirname, "../data/dummy.proto"));
+      const dummyMessage = ns.lookupType("TestMessage")!;
       const messageTests = generateMessageTests(dummyMessage);
       assert.strictEqual(
         generateNamespaceTests({
           apiName: "TestNamespace",
           topLevelMessages: [dummyMessage],
-          relativePath: "./relative/path"
+          relativePath: "./relative/path",
         }),
         `
 import { describe, it } from 'node:test';

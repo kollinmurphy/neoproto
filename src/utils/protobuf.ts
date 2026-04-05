@@ -25,7 +25,7 @@ export type MaybeOneOfField = proto.Field | OneOfField;
  * @returns An array of protobuf fields sorted alphabetically by field name, with fields that are part of a "oneof" group grouped together and sorted by their field names as well.
  */
 function unmemoizedGetFields(message: proto.Type): MaybeOneOfField[] {
-  const { oneOf, noOneOf } = Object.values(message.fields).reduce(
+  const { oneOf, noOneOf } = Object.values(message.fields ?? {}).reduce(
     (acc, field) => {
       if (field.partOf) {
         if (!acc.oneOf[field.partOf.name]) acc.oneOf[field.partOf.name] = [];
