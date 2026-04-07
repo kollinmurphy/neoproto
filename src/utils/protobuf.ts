@@ -55,9 +55,13 @@ function unmemoizedGetFields(message: proto.Type): MaybeOneOfField[] {
   ].sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 }
 
-const getFieldsUnsafe = memoize(unmemoizedGetFields, (message) => message.fullName);
+const getFieldsUnsafe = memoize(
+  unmemoizedGetFields,
+  (message) => message.fullName,
+);
 
-export const getFields = (message: proto.Type) => getFieldsUnsafe(message) ?? [];
+export const getFields = (message: proto.Type) =>
+  getFieldsUnsafe(message) ?? [];
 
 /**
  * Retrieves all protobuf message types defined within a given namespace, including those nested within other namespaces, and returns them as a flat array.
@@ -124,17 +128,21 @@ interface NamespaceDetails {
  * * @param root - The starting Namespace or Root object
  * @returns The matching Namespace, or null if not found
  */
-export function findApiNamespace(root: proto.Namespace, details?: NamespaceDetails | null): NamespaceDetails & {
-  namespace: proto.Namespace;
-  } | null {
-    let namespaceDetails = details || parseNamespace(root);
+export function findApiNamespace(
+  root: proto.Namespace,
+  details?: NamespaceDetails | null,
+):
+  | (NamespaceDetails & {
+      namespace: proto.Namespace;
+    })
+  | null {
+  let namespaceDetails = details || parseNamespace(root);
 
   // 1. Check if the current namespace itself matches the pattern
   // We reuse our previous parse logic to validate the current node
   const hasMessages = getMessages(root).length > 0;
-    console.log(`checking ns ${root.fullName}. det: ${namespaceDetails}. hasMess: ${hasMessages}`);
   if (namespaceDetails && hasMessages) {
-    return {...namespaceDetails, namespace: root}
+    return { ...namespaceDetails, namespace: root };
   }
 
   // 2. If this isn't it, check the children (nested namespaces)
@@ -157,9 +165,11 @@ export function findApiNamespace(root: proto.Namespace, details?: NamespaceDetai
  * @returns An object containing the baseName and version string
  * @throws Error if a version suffix (v1, V2, etc.) cannot be identified
  */
-export function parseNamespace(namespace: proto.Namespace): NamespaceDetails | null {
+export function parseNamespace(
+  namespace: proto.Namespace,
+): NamespaceDetails | null {
   const fullName = namespace.fullName || namespace.name;
-  const match = fullName.match(/^(.*)[._]?v(\d+)$/i);
+  const match = fullName.match(/^(.*)[._]?v?(\d+)$/i);
   if (!match) {
     return null;
   }

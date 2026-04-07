@@ -7,8 +7,7 @@ import {
   getDeserializerFunctionName,
   getSerializerFunctionName,
 } from "./serialization.js";
-import { getMessages } from "../utils/protobuf.js";
-import { getMessageId, isTopLevelMessage } from "../utils/associations.js";
+import { getMessageId } from "../utils/associations.js";
 
 /**
  * Generates wrapper functions for all messages and enums in a protobuf namespace, including nested namespaces, and returns the content of the wrapper file as a string.
@@ -18,24 +17,21 @@ import { getMessageId, isTopLevelMessage } from "../utils/associations.js";
  * @param associations - An array of tuples representing request-response message associations, where each tuple contains a request message type and its corresponding response message type. These associations are used to generate additional traits for request-response pairs.
  * @returns A string containing the content of the wrapper file with all the generated wrapper functions for the protobuf namespace
  */
-function createNamespaceTraits(
-  {
-    apiName,
-    apiVersion,
-    namespace,
-    associations,
-  }: {
-    apiName: string;
-    apiVersion: string;
-    namespace: proto.Namespace,
-    associations: [proto.Type, proto.Type][],
-  }
-): string {
+function createNamespaceTraits({
+  apiName,
+  apiVersion,
+  associations,
+  topLevelMessages,
+}: {
+  apiName: string;
+  apiVersion: string;
+  associations: [proto.Type, proto.Type][];
+  topLevelMessages: proto.Type[];
+}): string {
   let traitsContent = "";
   const messageTraits: string[] = [];
   const allImports: string[] = [];
-  const messages = getMessages(namespace);
-  for (const message of messages) {
+  for (const message of topLevelMessages) {
     const result = createMessageTraits(message);
     if (!result) {
       continue;
@@ -86,9 +82,6 @@ export {
  * @returns An object containing the TypeScript definition for the traits object, the name of the traits object, and an array of imports required for the serializer and deserializer functions. If the message is missing a message ID, it returns null.
  */
 function createMessageTraits(message: proto.Type) {
-  if (!isTopLevelMessage(message)) {
-    return null;
-  }
   const id = getMessageId(message);
   const traitName = getTraitName(message.name);
   const serialize = getSerializerFunctionName(message.name);
